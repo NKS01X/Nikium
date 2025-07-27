@@ -2,7 +2,7 @@ package lexer
 
 import (
 	"Nikium/token"
-	
+	"fmt"
 )
 
 // lexer is actually a type of scanner that breaks every line of the code into a lexer type struct

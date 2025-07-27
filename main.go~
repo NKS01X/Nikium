@@ -1,11 +1,11 @@
 package main
 
-//import (
-//	"bufio"
-//	"fmt"
-//	"os"
-//	"Nikium/lexer"
-//)
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"Nikium/lexer"
+)
 
 func main() {
 	//fmt.Println("ENTER THE CODE HERE:")
