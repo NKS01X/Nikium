@@ -2,9 +2,10 @@ package lexer
 
 import (
 	"Nikium/token"
+	"fmt"
 )
 
-// lexer is actually a type of scanner that breaks every line of the code into a lexer type struct
+// Lexer breaks input into tokens
 type Lexer struct {
 	input   string
 	currpos int
@@ -18,7 +19,7 @@ func New(inp string) *Lexer {
 	return l
 }
 
-func (l *Lexer) readChar() { // reads
+func (l *Lexer) readChar() {
 	if l.currinp >= len(l.input) {
 		l.ch = 0
 	} else {
@@ -28,11 +29,22 @@ func (l *Lexer) readChar() { // reads
 	l.currinp++
 }
 
-// now we break every type to token using GetTokenType function
+func (l *Lexer) PeekChar() byte {
+	if l.currinp >= len(l.input) {
+		return 0
+	}
+	return l.input[l.currinp]
+}
 
-func (l *Lexer) ReadIdentifier() string { // identifier read karega
+func (l *Lexer) skipWhitespace() {
+	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+		l.readChar()
+	}
+}
+
+func (l *Lexer) ReadIdentifier() string {
 	idx := l.currpos
-	for token.IsDigit(l.ch) || token.IsLetter(l.ch) || l.ch == '_' {
+	for token.IsLetter(l.ch) || token.IsDigit(l.ch) || l.ch == '_' {
 		l.readChar()
 	}
 	return l.input[idx:l.currpos]
@@ -44,39 +56,33 @@ func (l *Lexer) ReadInteger() string {
 		l.readChar()
 	}
 
-	// Handle suffixes like i32, i64
+	// handle suffixes i32, i64
 	if l.ch == 'i' {
-		// start := l.currpos
 		l.readChar()
 		for token.IsLetter(l.ch) || token.IsDigit(l.ch) {
 			l.readChar()
 		}
-		return l.input[idx:l.currpos]
 	}
-
 	return l.input[idx:l.currpos]
 }
 
-func (l *Lexer) skipWhitespace() {
-	//i := 0
-	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+func (l *Lexer) ReadString() string {
+	l.readChar() // skip opening quote
+	idx := l.currpos
+	for l.ch != '"' && l.ch != 0 {
 		l.readChar()
-		//	i++
 	}
-	//fmt.Printf("cnt: %d\n", i)
+	str := l.input[idx:l.currpos]
+	l.readChar() // skip closing quote
+	return str
 }
 
-func (l *Lexer) PeekChar() byte {
-	if l.currinp >= len(l.input) {
-		return 0
-	}
-	return l.input[l.currinp]
+// printToken prints token in language-style format
+func (l *Lexer) printToken(tok token.Token) {
+	fmt.Printf("<%s : %s>\n", tok.Type, tok.Literal)
 }
 
-// THINGS TO DO : 27:07:25
-// NEXTTOKEN FUNC IMPLEMENTATION
-// CHECKING IF THE TOKEN AND LEXER THINGS IS WORKING OR NOT
-
+// NextToken returns the next token
 func (l *Lexer) NextToken() token.Token {
 	l.skipWhitespace()
 
@@ -88,24 +94,43 @@ func (l *Lexer) NextToken() token.Token {
 			literal := string(ch) + string(l.ch)
 			tokType := token.GetTokenType(literal)
 			l.readChar()
-			return token.Token{Type: tokType, Literal: literal}
+			tok := token.Token{Type: tokType, Literal: literal}
+			l.printToken(tok)
+			return tok
 		}
 	}
 
+	// String literal
+	if l.ch == '"' {
+		str := l.ReadString()
+		tok := token.Token{Type: "STRING", Literal: str}
+		l.printToken(tok)
+		return tok
+	}
+
+	// Identifier / Keyword
 	if token.IsLetter(l.ch) || l.ch == '_' {
 		ident := l.ReadIdentifier()
 		tokType := token.GetTokenType(ident)
-		return token.Token{Type: tokType, Literal: ident}
+		tok := token.Token{Type: tokType, Literal: ident}
+		l.printToken(tok)
+		return tok
 	}
 
+	// EOF
 	if l.ch == 0 {
-		return token.Token{Type: "EOF", Literal: ""}
+		tok := token.Token{Type: "EOF", Literal: ""}
+		l.printToken(tok)
+		return tok
 	}
 
+	// Number
 	if token.IsDigit(l.ch) {
 		num := l.ReadInteger()
 		tokType := token.GetTokenType(num)
-		return token.Token{Type: tokType, Literal: num}
+		tok := token.Token{Type: tokType, Literal: num}
+		l.printToken(tok)
+		return tok
 	}
 
 	// Single-character symbols
@@ -113,6 +138,7 @@ func (l *Lexer) NextToken() token.Token {
 	l.readChar()
 	literal := string(ch)
 	tokType := token.GetTokenType(literal)
-
-	return token.Token{Type: tokType, Literal: literal}
+	tok := token.Token{Type: tokType, Literal: literal}
+	l.printToken(tok)
+	return tok
 }

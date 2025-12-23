@@ -2,17 +2,13 @@ package token
 
 import "strings"
 
-//here we have just made a map that will map type_of_token to literal
-//we have used map which will give the result in O(1)
-
 // Token represents a lexical token
 type Token struct {
 	Type    string
 	Literal string
 }
 
-// TokenLiterals maps known literals to token types
-//function and all later for GOD'S sake
+// TokenLiterals maps known literals/keywords to token types
 var TokenLiterals = map[string]string{
 	"I32":   "I32",
 	"I64":   "I64",
@@ -20,25 +16,32 @@ var TokenLiterals = map[string]string{
 	"else":  "ELSE",
 	"true":  "TRUE",
 	"false": "FALSE",
+	"print": "PRINT",
 	"=":     "ASSIGN",
 	"+":     "PLUS",
 	"-":     "MINUS",
 	"*":     "MUL",
 	"==":    "EQ",
 	"!=":    "NOT_EQ",
+	";":     "SEMICOLON",
+	"(":     "LPAREN",
+	")":     "RPAREN",
+	"{":     "LBRACE",
+	"}":     "RBRACE",
 }
 
 // GetTokenType returns the token type for a given literal
-
 func GetTokenType(literal string) string {
 	if tokType, ok := TokenLiterals[literal]; ok {
 		return tokType
 	}
+
+	// Identifier
 	if isIdentifier(literal) {
 		return "IDENT"
 	}
 
-	// Handle integer literals with suffix
+	// Integer with suffix
 	if strings.HasSuffix(literal, "i32") {
 		numPart := literal[:len(literal)-3]
 		if isNumber(numPart) {
@@ -54,15 +57,16 @@ func GetTokenType(literal string) string {
 		return "ILLEGAL"
 	}
 
-	// Plain number (no suffix)
+	// Plain number
 	if isNumber(literal) {
 		return "INT"
 	}
 
+	// Unknown token
 	return "ILLEGAL"
 }
 
-// isNumber checks if a string contains only digits
+// isNumber checks if a string is numeric
 func isNumber(s string) bool {
 	for i := 0; i < len(s); i++ {
 		if s[i] < '0' || s[i] > '9' {
@@ -88,12 +92,12 @@ func isIdentifier(s string) bool {
 	return true
 }
 
-// isDigit checks if a byte is a digit
+// IsDigit checks if a byte is a digit
 func IsDigit(ch byte) bool {
 	return '0' <= ch && ch <= '9'
 }
 
-// isLetter checks if a byte is a valid letter or underscore
+// IsLetter checks if a byte is a letter or underscore
 func IsLetter(ch byte) bool {
 	return ('a' <= ch && ch <= 'z') ||
 		('A' <= ch && ch <= 'Z') ||
