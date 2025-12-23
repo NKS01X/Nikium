@@ -2,7 +2,6 @@ package lexer
 
 import (
 	"Nikium/token"
-	
 )
 
 // lexer is actually a type of scanner that breaks every line of the code into a lexer type struct
@@ -44,6 +43,17 @@ func (l *Lexer) ReadInteger() string {
 	for token.IsDigit(l.ch) {
 		l.readChar()
 	}
+
+	// Handle suffixes like i32, i64
+	if l.ch == 'i' {
+		// start := l.currpos
+		l.readChar()
+		for token.IsLetter(l.ch) || token.IsDigit(l.ch) {
+			l.readChar()
+		}
+		return l.input[idx:l.currpos]
+	}
+
 	return l.input[idx:l.currpos]
 }
 
@@ -51,9 +61,9 @@ func (l *Lexer) skipWhitespace() {
 	//i := 0
 	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
 		l.readChar()
-	//	i++
+		//	i++
 	}
-	//fmt.Printf("cnt: %d\n", i) 
+	//fmt.Printf("cnt: %d\n", i)
 }
 
 func (l *Lexer) PeekChar() byte {
@@ -106,4 +116,3 @@ func (l *Lexer) NextToken() token.Token {
 
 	return token.Token{Type: tokType, Literal: literal}
 }
-
