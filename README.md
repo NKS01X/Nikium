@@ -1,8 +1,8 @@
 # Nikium
 
-<div align="center">
+<!-- <div align="center">
   <img src="https://via.placeholder.com/400x200.png?text=Nikium+Language" alt="Nikium Banner">
-</div>
+</div> -->
 
 <p align="center">
   <strong>A simple, elegant, and modern programming language.</strong>
