@@ -1,0 +1,9 @@
+a = 10;
+b = 12;
+print "the sum is:";
+print a + b;
+
+
+c:i64 = 10;
+
+print c;

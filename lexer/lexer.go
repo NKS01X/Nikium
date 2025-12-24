@@ -2,19 +2,24 @@ package lexer
 
 import (
 	"Nikium/token"
-	"fmt"
 )
 
-// Lexer breaks input into tokens
 type Lexer struct {
-	input   string
-	currpos int
-	currinp int
-	ch      byte
+	input       string
+	currpos     int
+	currinp     int
+	ch          byte
+	indentStack []int
+	atLineStart bool
+	emitDEDENT  []token.Token
 }
 
 func New(inp string) *Lexer {
-	l := &Lexer{input: inp}
+	l := &Lexer{
+		input:       inp,
+		indentStack: []int{0},
+		atLineStart: true,
+	}
 	l.readChar()
 	return l
 }
@@ -37,108 +42,144 @@ func (l *Lexer) PeekChar() byte {
 }
 
 func (l *Lexer) skipWhitespace() {
-	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+	for l.ch == ' ' || l.ch == '\t' {
 		l.readChar()
 	}
+}
+
+func (l *Lexer) readIndent() int {
+	count := 0
+	for l.ch == ' ' {
+		count++
+		l.readChar()
+	}
+	return count
 }
 
 func (l *Lexer) ReadIdentifier() string {
-	idx := l.currpos
+	start := l.currpos
 	for token.IsLetter(l.ch) || token.IsDigit(l.ch) || l.ch == '_' {
 		l.readChar()
 	}
-	return l.input[idx:l.currpos]
+	return l.input[start:l.currpos]
 }
 
 func (l *Lexer) ReadInteger() string {
-	idx := l.currpos
+	start := l.currpos
 	for token.IsDigit(l.ch) {
 		l.readChar()
 	}
-
-	// handle suffixes i32, i64
-	if l.ch == 'i' {
-		l.readChar()
-		for token.IsLetter(l.ch) || token.IsDigit(l.ch) {
-			l.readChar()
-		}
-	}
-	return l.input[idx:l.currpos]
+	return l.input[start:l.currpos]
 }
 
 func (l *Lexer) ReadString() string {
-	l.readChar() // skip opening quote
-	idx := l.currpos
+	l.readChar() // consume initial "
+	var out string
 	for l.ch != '"' && l.ch != 0 {
+		if l.ch == '\\' {
+			l.readChar()
+			switch l.ch {
+			case 'n':
+				out += "\n"
+			case 't':
+				out += "\t"
+			case '\\':
+				out += "\\"
+			case '"':
+				out += `"`
+			default:
+				// Or handle error, for now just append the char
+				out += string(l.ch)
+			}
+		} else {
+			out += string(l.ch)
+		}
 		l.readChar()
 	}
-	str := l.input[idx:l.currpos]
-	l.readChar() // skip closing quote
-	return str
+	l.readChar() // consume final "
+	return out
 }
 
-// printToken prints token in language-style format
-func (l *Lexer) printToken(tok token.Token) {
-	fmt.Printf("<%s : %s>\n", tok.Type, tok.Literal)
-}
-
-// NextToken returns the next token
 func (l *Lexer) NextToken() token.Token {
-	l.skipWhitespace()
+	if len(l.emitDEDENT) > 0 {
+		tok := l.emitDEDENT[0]
+		l.emitDEDENT = l.emitDEDENT[1:]
+		return tok
+	}
 
-	// Multi-character operators: ==, !=
-	if l.ch == '=' || l.ch == '!' {
-		if l.PeekChar() == '=' {
+	if l.atLineStart {
+		l.atLineStart = false
+		indent := l.readIndent()
+		lastIndent := l.indentStack[len(l.indentStack)-1]
+		if indent > lastIndent {
+			l.indentStack = append(l.indentStack, indent)
+			return token.Token{Type: "INDENT", Literal: ""}
+		} else if indent < lastIndent {
+			for indent < l.indentStack[len(l.indentStack)-1] {
+				l.indentStack = l.indentStack[:len(l.indentStack)-1]
+				l.emitDEDENT = append(l.emitDEDENT, token.Token{Type: "DEDENT", Literal: ""})
+			}
+			if len(l.emitDEDENT) > 0 {
+				tok := l.emitDEDENT[0]
+				l.emitDEDENT = l.emitDEDENT[1:]
+				return tok
+			}
+		}
+	}
+
+	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+		if l.ch == '\n' {
+			l.readChar()
+			l.atLineStart = true
+			return l.NextToken()
+		}
+		l.readChar()
+	}
+
+	// Check for single-character tokens first
+	switch l.ch {
+	case '=', '!', '+', '-', '*', ';', '(', ')', '{', '}', ':', '<', '>':
+		if l.ch == '=' && l.PeekChar() == '=' {
 			ch := l.ch
 			l.readChar()
 			literal := string(ch) + string(l.ch)
 			tokType := token.GetTokenType(literal)
 			l.readChar()
-			tok := token.Token{Type: tokType, Literal: literal}
-			l.printToken(tok)
-			return tok
+			return token.Token{Type: tokType, Literal: literal}
 		}
-	}
-
-	// String literal
-	if l.ch == '"' {
-		str := l.ReadString()
-		tok := token.Token{Type: "STRING", Literal: str}
-		l.printToken(tok)
+		if l.ch == '!' && l.PeekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tokType := token.GetTokenType(literal)
+			l.readChar()
+			return token.Token{Type: tokType, Literal: literal}
+		}
+		tok := token.Token{Type: token.GetTokenType(string(l.ch)), Literal: string(l.ch)}
+		l.readChar()
 		return tok
+	case 0:
+		if len(l.indentStack) > 1 {
+			l.indentStack = l.indentStack[:len(l.indentStack)-1]
+			return token.Token{Type: "DEDENT", Literal: ""}
+		}
+		return token.Token{Type: "EOF", Literal: ""}
+	case '"':
+		str := l.ReadString()
+		return token.Token{Type: "STRING", Literal: str}
 	}
 
-	// Identifier / Keyword
 	if token.IsLetter(l.ch) || l.ch == '_' {
 		ident := l.ReadIdentifier()
-		tokType := token.GetTokenType(ident)
-		tok := token.Token{Type: tokType, Literal: ident}
-		l.printToken(tok)
-		return tok
+		return token.Token{Type: token.GetTokenType(ident), Literal: ident}
 	}
 
-	// EOF
-	if l.ch == 0 {
-		tok := token.Token{Type: "EOF", Literal: ""}
-		l.printToken(tok)
-		return tok
-	}
-
-	// Number
 	if token.IsDigit(l.ch) {
 		num := l.ReadInteger()
-		tokType := token.GetTokenType(num)
-		tok := token.Token{Type: tokType, Literal: num}
-		l.printToken(tok)
-		return tok
+		return token.Token{Type: token.GetTokenType(num), Literal: num}
 	}
 
-	// Single-character symbols
 	ch := l.ch
 	l.readChar()
-	literal := string(ch)
-	tokType := token.GetTokenType(literal)
-	tok := token.Token{Type: tokType, Literal: literal}
-	l.printToken(tok)
-	return tok
+	return token.Token{Type: token.GetTokenType(string(ch)), Literal: string(ch)}
 }

@@ -8,7 +8,6 @@ import (
 	"strconv"
 )
 
-// Parser struct
 type Parser struct {
 	l       *lexer.Lexer
 	curTok  token.Token
@@ -18,14 +17,15 @@ type Parser struct {
 
 // Operator precedence
 var precedences = map[string]int{
-	"EQ":     1, // ==
-	"NOT_EQ": 1, // !=
+	"EQ":     1,
+	"NOT_EQ": 1,
+	"LT":     1,
+	"GT":     1,
 	"PLUS":   2,
 	"MINUS":  2,
 	"MUL":    3,
 }
 
-// New creates a new parser
 func New(l *lexer.Lexer) *Parser {
 	p := &Parser{l: l}
 	p.nextToken()
@@ -33,13 +33,11 @@ func New(l *lexer.Lexer) *Parser {
 	return p
 }
 
-// advance tokens
 func (p *Parser) nextToken() {
 	p.curTok = p.peekTok
 	p.peekTok = p.l.NextToken()
 }
 
-// ParseProgram parses the entire input into a Program AST node
 func (p *Parser) ParseProgram() *ast.Program {
 	prog := &ast.Program{}
 	prog.Statements = []ast.Statement{}
@@ -54,7 +52,7 @@ func (p *Parser) ParseProgram() *ast.Program {
 	return prog
 }
 
-// Parse a statement
+// ---------------- Statements ----------------
 func (p *Parser) parseStatement() ast.Statement {
 	switch p.curTok.Type {
 	case "IDENT":
@@ -63,6 +61,10 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parsePrintStatement()
 	case "IF":
 		return p.parseIfStatement()
+	case "WHILE":
+		return p.parseWhileStatement()
+	case "DEDENT":
+		return nil
 	default:
 		msg := fmt.Sprintf("unknown statement: %s", p.curTok.Literal)
 		p.errors = append(p.errors, msg)
@@ -70,19 +72,32 @@ func (p *Parser) parseStatement() ast.Statement {
 	}
 }
 
-// Assignment: x = 42i32;
+// Assignment: a:i32 = 10;
 func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt := &ast.LetStatement{Token: p.curTok}
 	name := &ast.Identifier{Token: p.curTok, Value: p.curTok.Literal}
 	stmt.Name = name
 
-	p.nextToken()
-	if p.curTok.Type != "ASSIGN" {
-		p.errors = append(p.errors, "expected ASSIGN after identifier")
+	if p.peekTok.Type == "COLON" {
+		p.nextToken() // IDENT
+		p.nextToken() // COLON
+
+		if p.curTok.Type == "IDENT" && (p.curTok.Literal == "i32" || p.curTok.Literal == "i64" || p.curTok.Literal == "string") {
+			stmt.Type = p.curTok.Literal
+		} else {
+			p.errors = append(p.errors, "expected type after :")
+			return nil
+		}
+	}
+
+	if p.peekTok.Type != "ASSIGN" {
+		p.errors = append(p.errors, "expected ASSIGN after identifier/type")
 		return nil
 	}
 
-	p.nextToken()
+	p.nextToken() // consume IDENT or type
+	p.nextToken() // consume ASSIGN
+
 	val := p.parseExpression(0)
 	if val == nil {
 		return nil
@@ -95,7 +110,7 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	return stmt
 }
 
-// Print statement: print x; or print "hello";
+// Print statement
 func (p *Parser) parsePrintStatement() *ast.PrintStatement {
 	stmt := &ast.PrintStatement{Token: p.curTok}
 	p.nextToken()
@@ -112,43 +127,85 @@ func (p *Parser) parsePrintStatement() *ast.PrintStatement {
 	return stmt
 }
 
-// If statement: if cond { ... } else { ... }
+// If statement with indentation
 func (p *Parser) parseIfStatement() *ast.IfStatement {
 	stmt := &ast.IfStatement{Token: p.curTok}
 	p.nextToken()
 	stmt.Condition = p.parseExpression(0)
 
-	if p.curTok.Type != "LBRACE" {
-		p.errors = append(p.errors, "expected { after if condition")
+	// Expect COLON after condition
+	if p.peekTok.Type != "COLON" {
+		p.errors = append(p.errors, "expected COLON after if condition")
 		return nil
 	}
+	p.nextToken() // consume COLON
+
+	// Expect INDENT for block
+	if p.peekTok.Type != "INDENT" {
+		p.errors = append(p.errors, "expected INDENT after if condition")
+		return nil
+	}
+	p.nextToken() // consume INDENT
 	stmt.Consequence = p.parseBlockStatement()
 
+	// Optional else
 	if p.peekTok.Type == "ELSE" {
 		p.nextToken() // consume ELSE
-		p.nextToken() // move to LBRACE
+		// colon after else is optional
+		if p.peekTok.Type == "COLON" {
+			p.nextToken()
+		}
+
+		if p.peekTok.Type != "INDENT" {
+			p.errors = append(p.errors, "expected INDENT after else")
+			return nil
+		}
+		p.nextToken()
 		stmt.Alternative = p.parseBlockStatement()
 	}
 	return stmt
 }
 
-// Block: { ... }
+func (p *Parser) parseWhileStatement() *ast.WhileStatement {
+	stmt := &ast.WhileStatement{Token: p.curTok}
+	p.nextToken()
+	stmt.Condition = p.parseExpression(0)
+
+	// Expect COLON after condition
+	if p.peekTok.Type != "COLON" {
+		p.errors = append(p.errors, "expected COLON after while condition")
+		return nil
+	}
+	p.nextToken() // consume COLON
+
+	// Expect INDENT for block
+	if p.peekTok.Type != "INDENT" {
+		p.errors = append(p.errors, "expected INDENT after while condition")
+		return nil
+	}
+	p.nextToken() // consume INDENT
+	stmt.Body = p.parseBlockStatement()
+
+	return stmt
+}
+
+// Block: INDENT ... DEDENT
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {
-	block := &ast.BlockStatement{Token: p.curTok}
+	block := &ast.BlockStatement{}
 	block.Statements = []ast.Statement{}
 
-	p.nextToken()
-	for p.curTok.Type != "RBRACE" && p.curTok.Type != "EOF" {
+	for p.curTok.Type != "DEDENT" && p.curTok.Type != "EOF" {
 		stmt := p.parseStatement()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
 		p.nextToken()
 	}
+
 	return block
 }
 
-// Parse expressions with precedence
+// ---------------- Expressions ----------------
 func (p *Parser) parseExpression(precedence int) ast.Expression {
 	var left ast.Expression
 
@@ -157,11 +214,15 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 		left = &ast.Identifier{Token: p.curTok, Value: p.curTok.Literal}
 	case "INT":
 		v, _ := strconv.ParseInt(p.curTok.Literal, 10, 64)
-		left = &ast.IntegerLiteral{Token: p.curTok, Value: v}
-	case "I32", "I64":
+		left = &ast.IntegerLiteral{Token: p.curTok, Value: v, Type: "i64"}
+	case "I32":
+		numStr := p.curTok.Literal[:len(p.curTok.Literal)-3]
+		v, _ := strconv.ParseInt(numStr, 10, 32)
+		left = &ast.IntegerLiteral{Token: p.curTok, Value: v, Type: "i32"}
+	case "I64":
 		numStr := p.curTok.Literal[:len(p.curTok.Literal)-3]
 		v, _ := strconv.ParseInt(numStr, 10, 64)
-		left = &ast.IntegerLiteral{Token: p.curTok, Value: v}
+		left = &ast.IntegerLiteral{Token: p.curTok, Value: v, Type: "i64"}
 	case "STRING":
 		left = &ast.StringLiteral{Token: p.curTok, Value: p.curTok.Literal}
 	case "LPAREN":
@@ -187,7 +248,6 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	return left
 }
 
-// Parse infix expression: x + 10
 func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	exp := &ast.BinaryExpression{
 		Token:    p.curTok,
@@ -214,7 +274,6 @@ func (p *Parser) curPrecedence() int {
 	return 0
 }
 
-// Errors returns parser errors
 func (p *Parser) Errors() []string {
 	return p.errors
 }

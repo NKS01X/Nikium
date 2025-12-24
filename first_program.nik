@@ -1,0 +1,6 @@
+a:i32 = 10;
+b:i32 = 13;
+c:i32 = 2;
+d:i32 = a + b;
+if d > c
+    print "is grater";
