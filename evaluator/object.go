@@ -1,15 +1,25 @@
 package evaluator
 
-import "fmt"
+import (
+	"Nikium/ast"
+	"bytes"
+	"fmt"
+	"strings"
+)
 
 type ObjectType string
 
+type NativeFn func(args []Object) Object
+
 const (
-	I32_OBJ     = "I32"
-	I64_OBJ     = "I64"
-	STRING_OBJ  = "STRING"
-	BOOLEAN_OBJ = "BOOLEAN"
-	NULL_OBJ    = "NULL"
+	INTEGER_OBJ      = "INTEGER"
+	BOOLEAN_OBJ      = "BOOLEAN"
+	NULL_OBJ         = "NULL"
+	RETURN_VALUE_OBJ = "RETURN_VALUE"
+	ERROR_OBJ        = "ERROR"
+	FUNCTION_OBJ     = "FUNCTION"
+	STRING_OBJ       = "STRING"
+	NATIVE_OBJ       = "NATIVE"
 )
 
 type Object interface {
@@ -17,24 +27,13 @@ type Object interface {
 	Inspect() string
 }
 
-// Integer object
 type Integer struct {
 	Value int64
-	IntType ObjectType
 }
 
-func (i *Integer) Type() ObjectType { return i.IntType }
+func (i *Integer) Type() ObjectType { return INTEGER_OBJ }
 func (i *Integer) Inspect() string  { return fmt.Sprintf("%d", i.Value) }
 
-// String object
-type String struct {
-	Value string
-}
-
-func (s *String) Type() ObjectType { return STRING_OBJ }
-func (s *String) Inspect() string  { return s.Value }
-
-// Boolean object
 type Boolean struct {
 	Value bool
 }
@@ -42,20 +41,62 @@ type Boolean struct {
 func (b *Boolean) Type() ObjectType { return BOOLEAN_OBJ }
 func (b *Boolean) Inspect() string  { return fmt.Sprintf("%t", b.Value) }
 
-// Null object
 type Null struct{}
 
 func (n *Null) Type() ObjectType { return NULL_OBJ }
 func (n *Null) Inspect() string  { return "null" }
 
-// Error object
+type ReturnValue struct {
+	Value Object
+}
+
+func (rv *ReturnValue) Type() ObjectType { return RETURN_VALUE_OBJ }
+func (rv *ReturnValue) Inspect() string  { return rv.Value.Inspect() }
+
 type Error struct {
 	Message string
 }
 
-func (e *Error) Type() ObjectType { return "ERROR" }
+func (e *Error) Type() ObjectType { return ERROR_OBJ }
 func (e *Error) Inspect() string  { return "ERROR: " + e.Message }
 
-var (
-	NULL = &Null{}
-)
+type Function struct {
+	Parameters []*ast.Identifier
+	Body       *ast.BlockStatement
+	Env        *Environment
+	Native     NativeFn
+}
+
+func (f *Function) Type() ObjectType {
+	if f.Native != nil {
+		return NATIVE_OBJ
+	}
+	return FUNCTION_OBJ
+}
+func (f *Function) Inspect() string {
+	if f.Native != nil {
+		return "native function"
+	}
+	var out bytes.Buffer
+
+	params := []string{}
+	for _, p := range f.Parameters {
+		params = append(params, p.String())
+	}
+
+	out.WriteString("fn")
+	out.WriteString("(")
+	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(") {\n")
+	out.WriteString(f.Body.String())
+	out.WriteString("\n}")
+
+	return out.String()
+}
+
+type String struct {
+	Value string
+}
+
+func (s *String) Type() ObjectType { return STRING_OBJ }
+func (s *String) Inspect() string  { return s.Value }

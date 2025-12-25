@@ -1,9 +1,37 @@
-a = 10;
-b = 12;
-print "the sum is:";
-print a + b;
+x = -5;
+y = 10;
+name = "Nikium";
 
+print x;
+print y;
+print name;
 
-c:i64 = 10;
+sum = x + y;
+isPositive = sum > 0;
 
-print c;
+print sum;
+print isPositive;
+
+if isPositive {
+    print "Sum is positive!";
+} else {
+    print "Sum is zero or negative!";
+}
+
+counter = 3;
+while counter > 0 {
+    print counter;
+    counter = counter - 1;
+}
+
+absVal = fn(n) {
+    if n < 0 {
+        return -n;
+    }
+    return n;
+};
+
+result = absVal(x);
+print result;
+
+print abs(x);

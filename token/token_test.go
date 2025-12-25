@@ -7,16 +7,17 @@ func TestGetTokenType(t *testing.T) {
 		literal string
 		want    string
 	}{
-		{"if", "IF"},
-		{"else", "ELSE"},
-		{"print", "PRINT"},
+		{"fn", "FUNCTION"},
+		{"let", "IDENT"},
 		{"true", "TRUE"},
 		{"false", "FALSE"},
-		{"42", "INT"},
-		{"123i32", "I32"},
-		{"999i64", "I64"},
+		{"if", "IF"},
+		{"else", "ELSE"},
+		{"return", "RETURN"},
+		{"print", "PRINT"},
+		{"while", "WHILE"},
 		{"myVar", "IDENT"},
-		{"!", "ILLEGAL"},
+		{"anotherVar", "IDENT"},
 	}
 
 	for _, tt := range tests {

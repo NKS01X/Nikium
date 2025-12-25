@@ -5,181 +5,149 @@ import (
 )
 
 type Lexer struct {
-	input       string
-	currpos     int
-	currinp     int
-	ch          byte
-	indentStack []int
-	atLineStart bool
-	emitDEDENT  []token.Token
+	input        string
+	position     int  // current position in input (points to current char)
+	readPosition int  // current reading position in input (after current char)
+	ch           byte // current char under examination
 }
 
-func New(inp string) *Lexer {
-	l := &Lexer{
-		input:       inp,
-		indentStack: []int{0},
-		atLineStart: true,
-	}
+func New(input string) *Lexer {
+	l := &Lexer{input: input}
 	l.readChar()
 	return l
 }
 
 func (l *Lexer) readChar() {
-	if l.currinp >= len(l.input) {
+	if l.readPosition >= len(l.input) {
 		l.ch = 0
 	} else {
-		l.ch = l.input[l.currinp]
+		l.ch = l.input[l.readPosition]
 	}
-	l.currpos = l.currinp
-	l.currinp++
-}
-
-func (l *Lexer) PeekChar() byte {
-	if l.currinp >= len(l.input) {
-		return 0
-	}
-	return l.input[l.currinp]
-}
-
-func (l *Lexer) skipWhitespace() {
-	for l.ch == ' ' || l.ch == '\t' {
-		l.readChar()
-	}
-}
-
-func (l *Lexer) readIndent() int {
-	count := 0
-	for l.ch == ' ' {
-		count++
-		l.readChar()
-	}
-	return count
-}
-
-func (l *Lexer) ReadIdentifier() string {
-	start := l.currpos
-	for token.IsLetter(l.ch) || token.IsDigit(l.ch) || l.ch == '_' {
-		l.readChar()
-	}
-	return l.input[start:l.currpos]
-}
-
-func (l *Lexer) ReadInteger() string {
-	start := l.currpos
-	for token.IsDigit(l.ch) {
-		l.readChar()
-	}
-	return l.input[start:l.currpos]
-}
-
-func (l *Lexer) ReadString() string {
-	l.readChar() // consume initial "
-	var out string
-	for l.ch != '"' && l.ch != 0 {
-		if l.ch == '\\' {
-			l.readChar()
-			switch l.ch {
-			case 'n':
-				out += "\n"
-			case 't':
-				out += "\t"
-			case '\\':
-				out += "\\"
-			case '"':
-				out += `"`
-			default:
-				// Or handle error, for now just append the char
-				out += string(l.ch)
-			}
-		} else {
-			out += string(l.ch)
-		}
-		l.readChar()
-	}
-	l.readChar() // consume final "
-	return out
+	l.position = l.readPosition
+	l.readPosition += 1
 }
 
 func (l *Lexer) NextToken() token.Token {
-	if len(l.emitDEDENT) > 0 {
-		tok := l.emitDEDENT[0]
-		l.emitDEDENT = l.emitDEDENT[1:]
-		return tok
-	}
+	var tok token.Token
 
-	if l.atLineStart {
-		l.atLineStart = false
-		indent := l.readIndent()
-		lastIndent := l.indentStack[len(l.indentStack)-1]
-		if indent > lastIndent {
-			l.indentStack = append(l.indentStack, indent)
-			return token.Token{Type: "INDENT", Literal: ""}
-		} else if indent < lastIndent {
-			for indent < l.indentStack[len(l.indentStack)-1] {
-				l.indentStack = l.indentStack[:len(l.indentStack)-1]
-				l.emitDEDENT = append(l.emitDEDENT, token.Token{Type: "DEDENT", Literal: ""})
-			}
-			if len(l.emitDEDENT) > 0 {
-				tok := l.emitDEDENT[0]
-				l.emitDEDENT = l.emitDEDENT[1:]
-				return tok
-			}
-		}
-	}
+	l.skipWhitespace()
 
-	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
-		if l.ch == '\n' {
-			l.readChar()
-			l.atLineStart = true
-			return l.NextToken()
-		}
-		l.readChar()
-	}
-
-	// Check for single-character tokens first
 	switch l.ch {
-	case '=', '!', '+', '-', '*', ';', '(', ')', '{', '}', ':', '<', '>':
-		if l.ch == '=' && l.PeekChar() == '=' {
+	case '=':
+		if l.peekChar() == '=' {
 			ch := l.ch
 			l.readChar()
 			literal := string(ch) + string(l.ch)
-			tokType := token.GetTokenType(literal)
-			l.readChar()
-			return token.Token{Type: tokType, Literal: literal}
+			tok = token.Token{Type: "EQ", Literal: literal}
+		} else {
+			tok = newToken("ASSIGN", l.ch)
 		}
-		if l.ch == '!' && l.PeekChar() == '=' {
+	case '+':
+		tok = newToken("PLUS", l.ch)
+	case '-':
+		tok = newToken("MINUS", l.ch)
+	case '!':
+		if l.peekChar() == '=' {
 			ch := l.ch
 			l.readChar()
 			literal := string(ch) + string(l.ch)
-			tokType := token.GetTokenType(literal)
-			l.readChar()
-			return token.Token{Type: tokType, Literal: literal}
+			tok = token.Token{Type: "NOT_EQ", Literal: literal}
+		} else {
+			tok = newToken("BANG", l.ch)
 		}
-		tok := token.Token{Type: token.GetTokenType(string(l.ch)), Literal: string(l.ch)}
-		l.readChar()
-		return tok
-	case 0:
-		if len(l.indentStack) > 1 {
-			l.indentStack = l.indentStack[:len(l.indentStack)-1]
-			return token.Token{Type: "DEDENT", Literal: ""}
-		}
-		return token.Token{Type: "EOF", Literal: ""}
+	case '/':
+		tok = newToken("SLASH", l.ch)
+	case '*':
+		tok = newToken("ASTERISK", l.ch)
+	case '<':
+		tok = newToken("LT", l.ch)
+	case '>':
+		tok = newToken("GT", l.ch)
+	case ';':
+		tok = newToken("SEMICOLON", l.ch)
+	case '(':
+		tok = newToken("LPAREN", l.ch)
+	case ')':
+		tok = newToken("RPAREN", l.ch)
+	case ',':
+		tok = newToken("COMMA", l.ch)
+	case '{':
+		tok = newToken("LBRACE", l.ch)
+	case '}':
+		tok = newToken("RBRACE", l.ch)
 	case '"':
-		str := l.ReadString()
-		return token.Token{Type: "STRING", Literal: str}
+		tok.Type = "STRING"
+		tok.Literal = l.readString()
+	case 0:
+		tok.Literal = ""
+		tok.Type = "EOF"
+	default:
+		if isLetter(l.ch) {
+			tok.Literal = l.readIdentifier()
+			tok.Type = token.GetTokenType(tok.Literal)
+			return tok
+		} else if isDigit(l.ch) {
+			tok.Type = "INT"
+			tok.Literal = l.readNumber()
+			return tok
+		} else {
+			tok = newToken("ILLEGAL", l.ch)
+		}
 	}
 
-	if token.IsLetter(l.ch) || l.ch == '_' {
-		ident := l.ReadIdentifier()
-		return token.Token{Type: token.GetTokenType(ident), Literal: ident}
-	}
-
-	if token.IsDigit(l.ch) {
-		num := l.ReadInteger()
-		return token.Token{Type: token.GetTokenType(num), Literal: num}
-	}
-
-	ch := l.ch
 	l.readChar()
-	return token.Token{Type: token.GetTokenType(string(ch)), Literal: string(ch)}
+	return tok
+}
+
+func (l *Lexer) skipWhitespace() {
+	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+		l.readChar()
+	}
+}
+
+func (l *Lexer) readIdentifier() string {
+	position := l.position
+	for isLetter(l.ch) {
+		l.readChar()
+	}
+	return l.input[position:l.position]
+}
+
+func (l *Lexer) readNumber() string {
+	position := l.position
+	for isDigit(l.ch) {
+		l.readChar()
+	}
+	return l.input[position:l.position]
+}
+
+func (l *Lexer) readString() string {
+	position := l.position + 1
+	for {
+		l.readChar()
+		if l.ch == '"' || l.ch == 0 {
+			break
+		}
+	}
+	return l.input[position:l.position]
+}
+
+func (l *Lexer) peekChar() byte {
+	if l.readPosition >= len(l.input) {
+		return 0
+	} else {
+		return l.input[l.readPosition]
+	}
+}
+
+func newToken(tokenType string, ch byte) token.Token {
+	return token.Token{Type: tokenType, Literal: string(ch)}
+}
+
+func isLetter(ch byte) bool {
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'
+}
+
+func isDigit(ch byte) bool {
+	return '0' <= ch && ch <= '9'
 }
