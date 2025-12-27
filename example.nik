@@ -1,37 +1,3 @@
-x = -5;
-y = 10;
-name = "Nikium";
+r = readInt();
 
-print x;
-print y;
-print name;
-
-sum = x + y;
-isPositive = sum > 0;
-
-print sum;
-print isPositive;
-
-if isPositive {
-    print "Sum is positive!";
-} else {
-    print "Sum is zero or negative!";
-}
-
-counter = 3;
-while counter > 0 {
-    print counter;
-    counter = counter - 1;
-}
-
-absVal = fn(n) {
-    if n < 0 {
-        return -n;
-    }
-    return n;
-};
-
-result = absVal(x);
-print result;
-
-print abs(x);
+print(r);

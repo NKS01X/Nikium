@@ -311,6 +311,44 @@ func TestStringConcatenation(t *testing.T) {
 	}
 }
 
+func testStringObject(t *testing.T, obj Object, expected string) bool {
+	result, ok := obj.(*String)
+	if !ok {
+		t.Errorf("object is not String. got=%T (%+v)", obj, obj)
+		return false
+	}
+	if result.Value != expected {
+		t.Errorf("object has wrong value. got=%q, want=%q",
+			result.Value, expected)
+		return false
+	}
+
+	return true
+}
+
+func TestStringIndexing(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{`"Hello"[0]`, "H"},
+		{`"Hello"[1]`, "e"},
+		{`"Hello"[4]`, "o"},
+		{`"Hello"[5]`, nil},
+		{`"Hello"[-1]`, nil},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		switch expected := tt.expected.(type) {
+		case string:
+			testStringObject(t, evaluated, expected)
+		case nil:
+			testNullObject(t, evaluated)
+		}
+	}
+}
+
 func testEval(input string) Object {
 	l := lexer.New(input)
 	p := parser.New(l)
