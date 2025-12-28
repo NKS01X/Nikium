@@ -83,6 +83,8 @@ func Eval(node ast.Node, env *Environment) Object {
 
 	case *ast.Identifier:
 		return evalIdentifier(node, env)
+	case *ast.ArrayLiteral:
+		return evalArrayLiteral(node, env)
 
 	case *ast.FunctionLiteral:
 		return &Function{
@@ -116,11 +118,24 @@ func Eval(node ast.Node, env *Environment) Object {
 
 	return nil
 }
+func evalArrayLiteral(node *ast.ArrayLiteral, env *Environment) Object {
+	elements := evalExpressions(node.Elements, env)
+	return &Array{Elements: elements}
+}
 
 // --- Indexing ---
 
 func evalIndexExpression(left, index Object) Object {
 	switch left := left.(type) {
+	case *Array:
+		idx, ok := index.(*Integer)
+		if !ok {
+			return newError("array index must be integer")
+		}
+		if idx.Value < 0 || idx.Value >= int64(len(left.Elements)) {
+			return NULL
+		}
+		return left.Elements[idx.Value]
 	case *String:
 		idx, ok := index.(*Integer)
 		if !ok {

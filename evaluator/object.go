@@ -20,6 +20,7 @@ const (
 	FUNCTION_OBJ     = "FUNCTION"
 	STRING_OBJ       = "STRING"
 	NATIVE_OBJ       = "NATIVE"
+	ARRAY_OBJ        = "ARRAY"
 )
 
 type Object interface {
@@ -100,3 +101,22 @@ type String struct {
 
 func (s *String) Type() ObjectType { return STRING_OBJ }
 func (s *String) Inspect() string  { return s.Value }
+
+type Array struct {
+	Elements []Object
+}
+
+func (a *Array) Type() ObjectType { return ARRAY_OBJ }
+
+func (a *Array) Inspect() string {
+	var out strings.Builder
+	out.WriteString("[")
+	for i, el := range a.Elements {
+		out.WriteString(el.Inspect())
+		if i != len(a.Elements)-1 {
+			out.WriteString(", ")
+		}
+	}
+	out.WriteString("]")
+	return out.String()
+}

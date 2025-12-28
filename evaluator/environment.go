@@ -1,6 +1,8 @@
 package evaluator
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Environment struct {
 	store map[string]Object
@@ -43,6 +45,23 @@ func NewEnvironment() *Environment {
 			return NULL
 		},
 	})
+
+	env.Set("push", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 2 {
+				return &Error{Message: fmt.Sprintf("push: expected 2 arguments, got %d", len(args))}
+			}
+			arr, ok := args[0].(*Array)
+			if !ok {
+				return &Error{Message: "push: first argument must be an array"}
+			}
+			newElements := make([]Object, len(arr.Elements)+1)
+			copy(newElements, arr.Elements)
+			newElements[len(arr.Elements)] = args[1]
+			return &Array{Elements: newElements}
+		},
+	})
+
 	return env
 }
 

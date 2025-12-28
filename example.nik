@@ -1,3 +1,25 @@
-r = readInt();
+tar = readInt();
 
-print(r);
+lo = 0;
+hi = 10;
+found = 0;
+while lo < hi {
+    mid = (lo + hi) / 2;
+    if mid == tar {
+        found = 1;
+        lo = mid;
+        hi = mid;
+    }else {
+        if mid < tar {
+            lo = mid + 1;
+        }else {
+            hi = mid - 1;
+        }
+    }
+}
+if found == 0 {
+    print("not found");
+}else {
+    print("found");
+}
+

@@ -1,0 +1,40 @@
+split = fn(s, sep) {
+    l = len(s);
+    ans = [];
+    cur = "";
+    i = 0;
+
+    while i < l {
+        if s[i] == sep {
+            ans = push(ans, cur);
+            cur = "";
+        } else {
+            cur = cur + s[i];
+        }
+        i = i + 1;
+    }
+
+    ans = push(ans, cur);
+    return ans;
+};
+
+readArray = fn() {
+    s = readLine();
+    arr = [];
+    n = len(s);
+    cur = 0;
+    i = 0;
+
+    while i < n {
+        if s[i] == " " {
+            arr = push(arr, cur);
+            cur = 0;
+        } else {
+            cur = cur * 10 + (s[i] - "0");
+        }
+        i = i + 1;
+    }
+
+    arr = push(arr, cur);
+    return arr;
+};
