@@ -177,12 +177,12 @@ print pow(2, 3);       // 8
 print clamp(10, 0, 5); // 5
 ```
 
-### array.nik — Array Utilities
+### arrayutils.nik — Array Utilities
 
 Provides array formatting and transformations.
 
 ```nikium
-load "stdlib/array.nik";
+load "stdlib/arrayutils.nik";
 
 arr = [1, 2, 3];
 print sum(arr);         // 6
@@ -191,12 +191,12 @@ print reverse(arr);     // [3, 2, 1]
 print indexOf(arr, 2);  // 1
 ```
 
-### string.nik — String Utilities
+### stringutils.nik — String Utilities
 
 Provides string manipulation functionalities.
 
 ```nikium
-load "stdlib/string.nik";
+load "stdlib/stringutils.nik";
 
 print upper("hello");          // "HELLO"
 print repeat("hi ", 3);        // "hi hi hi "
@@ -216,8 +216,8 @@ print split("a,b", ",");       // ["a", "b"]
 ```nikium
 // example.nik
 load "stdlib/math.nik";
-load "stdlib/string.nik";
-load "stdlib/array.nik";
+load "stdlib/stringutils.nik";
+load "stdlib/arrayutils.nik";
 
 print "--- Nikium Example Program ---";
 

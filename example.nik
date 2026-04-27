@@ -1,6 +1,6 @@
 load "stdlib/math.nik";
-load "stdlib/string.nik";
-load "stdlib/array.nik";
+load "stdlib/stringutils.nik";
+load "stdlib/arrayutils.nik";
 
 print "--- Nikium Example Program ---";
 

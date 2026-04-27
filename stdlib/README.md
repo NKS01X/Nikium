@@ -24,7 +24,7 @@ print clamp(10, 0, 5); // 5
 
 ---
 
-## array.nik
+## arrayutils.nik
 | Function | Signature | Description |
 |---|---|---|
 | `map` | `map(arr, f)` | Apply `f` to each element, return new array |
@@ -36,7 +36,7 @@ print clamp(10, 0, 5); // 5
 | `indexOf` | `indexOf(arr, val)` | Index of `val` or -1 |
 
 ```nikium
-load "stdlib/array.nik";
+load "stdlib/arrayutils.nik";
 arr = [1, 2, 3];
 print map(arr, fn(x) { return x * 2; }); // [2, 4, 6]
 print filter(arr, fn(x) { return x > 1; }); // [2, 3]
@@ -51,7 +51,7 @@ print indexOf(arr, 2);  // 1
 
 ---
 
-## string.nik
+## stringutils.nik
 | Function | Signature | Description |
 |---|---|---|
 | `upper` | `upper(s)` | Uppercase string |
@@ -64,7 +64,7 @@ print indexOf(arr, 2);  // 1
 | `indexOf` | `indexOf(s, sub)` | Index of substring `sub` or -1 |
 
 ```nikium
-load "stdlib/string.nik";
+load "stdlib/stringutils.nik";
 print upper("hello");          // "HELLO"
 print lower("HELLO");          // "hello"
 print trim("  hi  ");          // "hi"
