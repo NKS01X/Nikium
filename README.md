@@ -10,6 +10,22 @@
 
 ---
 
+## 🚀 Quick Install
+
+Install Nikium in seconds. No need to install Go or compile any code.
+
+**Mac / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/NKS01X/Nikium/main/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/NKS01X/Nikium/main/install.ps1 | iex
+```
+
+---
+
 ## 📖 The Architecture Book: How Nikium Works
 
 Welcome to the definitive guide on Nikium. This document goes far beyond basic usage—it is a deep dive into the language's core abstractions, architecture, and runtime optimizations, serving as a comprehensive book on the language design.

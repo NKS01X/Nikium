@@ -1,0 +1,18 @@
+version: 2
+project_name: Nikium
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+archives:
+  - format: tar.gz
+    name_template: "Nikium_{{ if eq .Os \"darwin\" }}Mac{{ else }}{{ title .Os }}{{ end }}_{{ if eq .Arch \"amd64\" }}x86_64{{ else }}{{ .Arch }}{{ end }}"
+    format_overrides:
+      - goos: windows
+        format: zip
