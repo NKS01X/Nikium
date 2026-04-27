@@ -1,6 +1,6 @@
 p = struct {
-	name:string,
-	age:int,
+	name:string,//have to declare type 
+	age:int,//have to declare type
 };
 
 p* nn = new p();
