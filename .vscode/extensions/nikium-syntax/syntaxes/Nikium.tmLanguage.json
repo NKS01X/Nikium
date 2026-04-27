@@ -1,0 +1,94 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "Nikium",
+    "patterns": [
+        {
+            "include": "#keywords"
+        },
+        {
+            "include": "#functions"
+        },
+        {
+            "include": "#strings"
+        },
+        {
+            "include": "#numbers"
+        },
+        {
+            "include": "#operators"
+        },
+        {
+            "include": "#comments"
+        }
+    ],
+    "repository": {
+        "keywords": {
+            "patterns": [
+                {
+                    "name": "keyword.control.nikium",
+                    "match": "\\b(if|else|while|for|return|break|continue|print|load)\\b"
+                },
+                {
+                    "name": "keyword.declaration.nikium",
+                    "match": "\\b(let|fn|struct|new|generic)\\b"
+                },
+                {
+                    "name": "constant.language.nikium",
+                    "match": "\\b(true|false)\\b"
+                },
+                {
+                    "name": "entity.name.type.nikium",
+                    "match": "\\b(int|string|i64|bool|T)\\b"
+                }
+            ]
+        },
+        "functions": {
+            "patterns": [
+                {
+                    "name": "entity.name.function.nikium",
+                    "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\(|<)"
+                }
+            ]
+        },
+        "strings": {
+            "patterns": [
+                {
+                    "name": "string.quoted.double.nikium",
+                    "begin": "\"",
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.nikium",
+                            "match": "\\\\."
+                        }
+                    ]
+                }
+            ]
+        },
+        "numbers": {
+            "patterns": [
+                {
+                    "name": "constant.numeric.nikium",
+                    "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+                }
+            ]
+        },
+        "operators": {
+            "patterns": [
+                {
+                    "name": "keyword.operator.nikium",
+                    "match": "(==|!=|<=|>=|<|>|\\+|-|\\*|/|%|!|&&|\\|\\||=|\\+\\+|->|&|<<|>>)"
+                }
+            ]
+        },
+        "comments": {
+            "patterns": [
+                {
+                    "name": "comment.line.double-slash.nikium",
+                    "match": "//.*$"
+                }
+            ]
+        }
+    },
+    "scopeName": "source.nik"
+}

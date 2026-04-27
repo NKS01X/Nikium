@@ -1,0 +1,37 @@
+{
+    "name": "nikium",
+    "displayName": "Nikium",
+    "description": "Syntax highlighting for the Nikium programming language",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.0.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "nikium",
+                "aliases": [
+                    "Nikium",
+                    "nikium"
+                ],
+                "extensions": [
+                    ".nik"
+                ],
+                "icon": {
+                    "light": "./icons/nikium-icon.svg",
+                    "dark": "./icons/nikium-icon.svg"
+                }
+            }
+        ],
+        "grammars": [
+            {
+                "language": "nikium",
+                "scopeName": "source.nik",
+                "path": "./syntaxes/Nikium.tmLanguage.json"
+            }
+        ]
+    }
+}

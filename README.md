@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./.vscode/extensions/nikium-syntax/icons/nikium-icon.svg" width="200" alt="Nikium Logo">
+</p>
+
 # 🌟 Nikium: The Ultimate Language 
 
 <p align="center">

@@ -9,6 +9,7 @@ import (
 type Node interface {
 	TokenLiteral() string
 	String() string
+	GetToken() token.Token
 }
 
 type Statement interface {
@@ -540,3 +541,33 @@ func (ne *NewExpression) String() string {
 	return out.String()
 }
 
+
+
+func (n *Program) GetToken() token.Token { if len(n.Statements) > 0 { return n.Statements[0].GetToken() }; return token.Token{} }
+func (n *Boolean) GetToken() token.Token { return n.Token }
+func (n *LetStatement) GetToken() token.Token { return n.Token }
+func (n *FunctionLiteral) GetToken() token.Token { return n.Token }
+func (n *CallExpression) GetToken() token.Token { return n.Token }
+func (n *PrintStatement) GetToken() token.Token { return n.Token }
+func (n *ExpressionStatement) GetToken() token.Token { return n.Token }
+func (n *BlockStatement) GetToken() token.Token { return n.Token }
+func (n *Identifier) GetToken() token.Token { return n.Token }
+func (n *IntegerLiteral) GetToken() token.Token { return n.Token }
+func (n *StringLiteral) GetToken() token.Token { return n.Token }
+func (n *PrefixExpression) GetToken() token.Token { return n.Token }
+func (n *BinaryExpression) GetToken() token.Token { return n.Token }
+func (n *IfStatement) GetToken() token.Token { return n.Token }
+func (n *WhileStatement) GetToken() token.Token { return n.Token }
+func (n *LoadStatement) GetToken() token.Token { return n.Token }
+func (n *ReturnStatement) GetToken() token.Token { return n.Token }
+func (n *BreakStatement) GetToken() token.Token { return n.Token }
+func (n *ContinueStatement) GetToken() token.Token { return n.Token }
+func (n *IndexExpression) GetToken() token.Token { return n.Left.GetToken() }
+func (n *ArrayLiteral) GetToken() token.Token { return n.Token }
+func (n *HashLiteral) GetToken() token.Token { return n.Token }
+func (n *StructLiteral) GetToken() token.Token { return n.Token }
+func (n *PropertyAccessExpression) GetToken() token.Token { return n.Token }
+func (n *ForStatement) GetToken() token.Token { return n.Token }
+func (n *AssignExpression) GetToken() token.Token { return n.Token }
+func (n *VarDeclaration) GetToken() token.Token { return n.Token }
+func (n *NewExpression) GetToken() token.Token { return n.Token }

@@ -19,6 +19,18 @@ var (
 // --- Eval ---
 
 func Eval(node ast.Node, env *Environment) Object {
+	obj := evalInner(node, env)
+	if err, ok := obj.(*Error); ok {
+		if !err.HasLocation && node != nil {
+			tok := node.GetToken()
+			err.Message = fmt.Sprintf("%s on line %d, col %d", err.Message, tok.Line, tok.Column)
+			err.HasLocation = true
+		}
+	}
+	return obj
+}
+
+func evalInner(node ast.Node, env *Environment) Object {
 	switch node := node.(type) {
 
 	case *ast.Program:
@@ -38,14 +50,19 @@ func Eval(node ast.Node, env *Environment) Object {
 			}
 		} else {
 			if strct, isStruct := typeObj.(*Struct); isStruct {
-				instance := instantiateStruct(strct)
-				// resolve generic type args: p<int> name
-				if node.GenericType != "" && strct.GenericTypes != nil {
-					for k := range instance.GenericTypes {
-						instance.GenericTypes[k] = node.GenericType
+				if node.IsPointer {
+					val = NULL
+				} else {
+					instance := instantiateStruct(strct, node.Type)
+					callConstructor(instance, []Object{})
+					// resolve generic type args: p<int> name
+					if node.GenericType != "" && strct.GenericTypes != nil {
+						for k := range instance.GenericTypes {
+							instance.GenericTypes[k] = node.GenericType
+						}
 					}
+					val = instance
 				}
-				val = instance
 			} else {
 				val = NULL
 			}
@@ -67,7 +84,8 @@ func Eval(node ast.Node, env *Environment) Object {
 			return newError("unknown type: %s", node.Class)
 		}
 		if strct, isStruct := typeObj.(*Struct); isStruct {
-			instance := instantiateStruct(strct)
+			instance := instantiateStruct(strct, node.Class)
+			callConstructor(instance, evalExpressions(node.Arguments, env))
 			// resolve generic type args: new p<int>()
 			if node.GenericType != "" && instance.GenericTypes != nil {
 				for k := range instance.GenericTypes {
@@ -475,7 +493,9 @@ func applyFunction(fn Object, args []Object, typeArg string) Object {
 		for i, param := range fn.Parameters {
 			env.Set(param.Value, args[i])
 		}
-		return unwrapReturnValue(Eval(fn.Body, env))
+		result := unwrapReturnValue(Eval(fn.Body, env))
+		cleanupEnvironment(env, result)
+		return result
 	default:
 		return newError("not a function: %s", fn.Type())
 	}
@@ -740,6 +760,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 		result = Eval(node.Body, loopEnv)
 		if result != nil {
 			if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
+				cleanupEnvironment(loopEnv, unwrapReturnValue(result))
 				return result
 			}
 			if result.Type() == BREAK_OBJ {
@@ -751,6 +772,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 			Eval(node.Post, loopEnv)
 		}
 	}
+	cleanupEnvironment(loopEnv, nil)
 	return NULL
 }
 
@@ -772,7 +794,7 @@ func evalIncExpression(node *ast.PrefixExpression, env *Environment) Object {
 	return newVal
 }
 
-func instantiateStruct(s *Struct) *Struct {
+func instantiateStruct(s *Struct, className string) *Struct {
 	newProps := make(map[string]Object)
 	for k, v := range s.Properties {
 		newProps[k] = v
@@ -785,7 +807,48 @@ func instantiateStruct(s *Struct) *Struct {
 			gt[k] = v
 		}
 	}
-	return &Struct{Properties: newProps, GenericTypes: gt}
+	return &Struct{Properties: newProps, GenericTypes: gt, ClassName: className}
+}
+
+func callConstructor(instance *Struct, args []Object) {
+	if instance.ClassName == "" {
+		return
+	}
+	if initProp, exists := instance.Properties[instance.ClassName]; exists {
+		if fn, ok := initProp.(*Function); ok {
+			applyFunction(fn, args, "")
+		}
+	}
+}
+
+func cleanupEnvironment(env *Environment, exclude Object) {
+	for _, obj := range env.store {
+		if obj == exclude {
+			continue
+		}
+		clearObjectMemory(obj)
+	}
+}
+
+func clearObjectMemory(obj Object) {
+	switch val := obj.(type) {
+	case *Struct:
+		if val.ClassName != "" && val.Properties != nil {
+			if delProp, exists := val.Properties["~" + val.ClassName]; exists {
+				if fn, ok := delProp.(*Function); ok {
+					applyFunction(fn, []Object{}, "")
+				}
+			}
+		}
+		val.Properties = nil
+	case *Pointer:
+		if val.Value != nil && val.Value != NULL {
+			if strct, ok := val.Value.(*Struct); ok {
+				clearObjectMemory(strct)
+			}
+			val.Value = NULL
+		}
+	}
 }
 
 func evalPropertyAssignment(object Object, property *ast.Identifier, val Object) Object {

@@ -121,11 +121,12 @@ func (rv *ReturnValue) Type() ObjectType { return RETURN_VALUE_OBJ }
 func (rv *ReturnValue) Inspect() string  { return rv.Value.Inspect() }
 
 type Error struct {
-	Message string
+	Message     string
+	HasLocation bool
 }
 
 func (e *Error) Type() ObjectType { return ERROR_OBJ }
-func (e *Error) Inspect() string  { return "ERROR: " + e.Message }
+func (e *Error) Inspect() string  { return "Error: " + e.Message }
 
 type Function struct {
 	Parameters  []*ast.Identifier
@@ -196,6 +197,7 @@ func (a *Array) Inspect() string {
 type Struct struct {
 	Properties   map[string]Object
 	GenericTypes map[string]string // e.g. "T" → "int" — resolved generic bindings
+	ClassName    string            // e.g. "p"
 }
 
 func (s *Struct) Type() ObjectType { return STRUCT_OBJ }

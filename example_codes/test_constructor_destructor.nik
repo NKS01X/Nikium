@@ -1,0 +1,20 @@
+p = struct {
+    p: fn() {
+        print "Constructor p() called!";
+    },
+    ~p: fn() {
+        print "Destructor ~p() called!";
+    }
+};
+
+print "Testing Stack Allocation:";
+for(i = 0; i < 1; ++i) {
+    p p1();
+    print "Inside loop...";
+}
+print "Outside loop (stack loopEnv destructed above).";
+
+print "";
+print "Testing Heap Allocation:";
+p* ptr = new p();
+print "Outside, manual scope end for pointer won't happen unless we force it or end program.";
