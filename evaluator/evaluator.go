@@ -5,7 +5,7 @@ import (
 	"Nikium/lexer"
 	"Nikium/parser"
 	"fmt"
-	"io/ioutil"
+	"os"
 )
 
 var (
@@ -133,6 +133,9 @@ func Eval(node ast.Node, env *Environment) Object {
 	case *ast.ArrayLiteral:
 		return evalArrayLiteral(node, env)
 
+	case *ast.HashLiteral:
+		return evalHashLiteral(node, env)
+
 	case *ast.FunctionLiteral:
 		return &Function{
 			Parameters: node.Parameters,
@@ -170,6 +173,27 @@ func evalArrayLiteral(node *ast.ArrayLiteral, env *Environment) Object {
 	return &Array{Elements: elements}
 }
 
+func evalHashLiteral(node *ast.HashLiteral, env *Environment) Object {
+	pairs := make(map[HashKey]HashPair)
+	for keyNode, valueNode := range node.Pairs {
+		key := Eval(keyNode, env)
+		if isError(key) {
+			return key
+		}
+		hashable, ok := key.(Hashable)
+		if !ok {
+			return newError("unusable as hash key: %s", key.Type())
+		}
+		value := Eval(valueNode, env)
+		if isError(value) {
+			return value
+		}
+		hashed := hashable.HashKey()
+		pairs[hashed] = HashPair{Key: key, Value: value}
+	}
+	return &Hash{Pairs: pairs}
+}
+
 // --- Indexing ---
 
 func evalIndexExpression(left, index Object) Object {
@@ -192,6 +216,16 @@ func evalIndexExpression(left, index Object) Object {
 			return NULL
 		}
 		return &String{Value: string(left.Value[idx.Value])}
+	case *Hash:
+		hashable, ok := index.(Hashable)
+		if !ok {
+			return newError("unusable as hash key: %s", index.Type())
+		}
+		pair, ok := left.Pairs[hashable.HashKey()]
+		if !ok {
+			return NULL
+		}
+		return pair.Value
 	default:
 		return newError("index operator not supported on %s", left.Type())
 	}
@@ -214,7 +248,7 @@ func evalProgram(program *ast.Program, env *Environment) Object {
 }
 
 func evalLoadStatement(node *ast.LoadStatement, env *Environment) Object {
-	content, err := ioutil.ReadFile(node.File.Value)
+	content, err := os.ReadFile(node.File.Value)
 	if err != nil {
 		return newError("could not read file: %s", node.File.Value)
 	}
@@ -389,12 +423,14 @@ func evalInfixExpression(op string, left, right Object) Object {
 		lstr := left.(*String).Value
 		rstr := right.(*String).Value
 
+		if op == "+" {
+			return &String{Value: lstr + rstr}
+		}
+
 		if len(lstr) == 1 && len(rstr) == 1 {
 			lv := int64(lstr[0])
 			rv := int64(rstr[0])
 			switch op {
-			case "+":
-				return &Integer{Value: lv + rv}
 			case "-":
 				return &Integer{Value: lv - rv}
 			case "*":
@@ -409,14 +445,15 @@ func evalInfixExpression(op string, left, right Object) Object {
 				return nativeBoolToBooleanObject(lv < rv)
 			case ">":
 				return nativeBoolToBooleanObject(lv > rv)
+			case "<=":
+				return nativeBoolToBooleanObject(lv <= rv)
+			case ">=":
+				return nativeBoolToBooleanObject(lv >= rv)
 			default:
 				return newError("unknown operator for chars: %s", op)
 			}
 		}
 
-		if op == "+" {
-			return &String{Value: lstr + rstr}
-		}
 		return newError("unknown operator for strings: %s", op)
 
 	case left.Type() == STRING_OBJ && right.Type() == INTEGER_OBJ:
@@ -480,6 +517,9 @@ func evalIntegerInfixExpression(op string, left, right Object) Object {
 	case "*":
 		return &Integer{Value: lv * rv}
 	case "/":
+		if rv == 0 {
+			return newError("division by zero")
+		}
 		return &Integer{Value: lv / rv}
 	case "%":
 		if rv == 0 {

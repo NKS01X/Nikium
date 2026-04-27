@@ -22,18 +22,19 @@ up_name = upper(name);
 print "Uppercase name:";
 print up_name;
 
+low_name = lower(name);
+print "Lowercase name:";
+print low_name;
+
 arr = [1, 2, 3, 4, 5];
 print "Sum of array:";
 print sum(arr);
 
-i = 0;
-while i < 5 {
-    print i;
-    i = i + 1;
-}
+a:string = "hello+World"
+print split(a, "+");
 
 if (active) {
     print "System is active.";
 }
-
+aghoe
 print "--- End of Program ---";

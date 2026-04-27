@@ -1,9 +1,9 @@
-file ?= example.nik
+FILE ?= example.nik
 
-run:
-	go run main.go $(file)
+run: build
+	./nikium $(FILE)
 
 build:
-	go build -o nikium.exe
+	go build -o nikium main.go
 
 .PHONY: run build

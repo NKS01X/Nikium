@@ -320,8 +320,6 @@ func (rs *ReturnStatement) String() string {
 	}
 	out.WriteString(";")
 
-	out.WriteString(";")
-
 	return out.String()
 }
 
@@ -381,5 +379,29 @@ func (al *ArrayLiteral) String() string {
 	}
 	out.WriteString("]")
 
+	return out.String()
+}
+
+type HashLiteral struct {
+	Token token.Token // the '{' token
+	Pairs map[Expression]Expression
+}
+
+func (hl *HashLiteral) expressionNode()      {}
+func (hl *HashLiteral) TokenLiteral() string { return hl.Token.Literal }
+func (hl *HashLiteral) String() string {
+	var out strings.Builder
+	out.WriteString("{")
+	i := 0
+	for k, v := range hl.Pairs {
+		if i > 0 {
+			out.WriteString(", ")
+		}
+		out.WriteString(k.String())
+		out.WriteString(": ")
+		out.WriteString(v.String())
+		i++
+	}
+	out.WriteString("}")
 	return out.String()
 }

@@ -4,6 +4,7 @@ import (
 	"Nikium/ast"
 	"bytes"
 	"fmt"
+	"hash/fnv"
 	"strings"
 )
 
@@ -21,6 +22,7 @@ const (
 	STRING_OBJ       = "STRING"
 	NATIVE_OBJ       = "NATIVE"
 	ARRAY_OBJ        = "ARRAY"
+	HASH_OBJ         = "HASH"
 	BREAK_OBJ        = "BREAK"
 	CONTINUE_OBJ     = "CONTINUE"
 )
@@ -30,12 +32,55 @@ type Object interface {
 	Inspect() string
 }
 
+// --- HashKey ---
+
+type HashKey struct {
+	Type  ObjectType
+	Value uint64
+}
+
+type Hashable interface {
+	HashKey() HashKey
+}
+
+type HashPair struct {
+	Key   Object
+	Value Object
+}
+
+type Hash struct {
+	Pairs map[HashKey]HashPair
+}
+
+func (h *Hash) Type() ObjectType { return HASH_OBJ }
+func (h *Hash) Inspect() string {
+	var out strings.Builder
+	out.WriteString("{")
+	i := 0
+	for _, pair := range h.Pairs {
+		if i > 0 {
+			out.WriteString(", ")
+		}
+		out.WriteString(pair.Key.Inspect())
+		out.WriteString(": ")
+		out.WriteString(pair.Value.Inspect())
+		i++
+	}
+	out.WriteString("}")
+	return out.String()
+}
+
+// --- Primitives ---
+
 type Integer struct {
 	Value int64
 }
 
 func (i *Integer) Type() ObjectType { return INTEGER_OBJ }
 func (i *Integer) Inspect() string  { return fmt.Sprintf("%d", i.Value) }
+func (i *Integer) HashKey() HashKey {
+	return HashKey{Type: INTEGER_OBJ, Value: uint64(i.Value)}
+}
 
 type Boolean struct {
 	Value bool
@@ -43,6 +88,13 @@ type Boolean struct {
 
 func (b *Boolean) Type() ObjectType { return BOOLEAN_OBJ }
 func (b *Boolean) Inspect() string  { return fmt.Sprintf("%t", b.Value) }
+func (b *Boolean) HashKey() HashKey {
+	var val uint64
+	if b.Value {
+		val = 1
+	}
+	return HashKey{Type: BOOLEAN_OBJ, Value: val}
+}
 
 type Null struct{}
 
@@ -113,6 +165,11 @@ type String struct {
 
 func (s *String) Type() ObjectType { return STRING_OBJ }
 func (s *String) Inspect() string  { return s.Value }
+func (s *String) HashKey() HashKey {
+	h := fnv.New64a()
+	h.Write([]byte(s.Value))
+	return HashKey{Type: STRING_OBJ, Value: h.Sum64()}
+}
 
 type Array struct {
 	Elements []Object

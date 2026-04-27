@@ -23,28 +23,29 @@ const FEATURES = `
 Nikium Language Features:
 
 - Variable Declaration:
-  - with type: my_var:i32 = 10;
-  - without type: my_var = 10;
+  - with type: let my_var:i32 = 10;
+  - without type: let my_var = 10;
 
 - Data Types:
-  - i32, i64, string
+  - int, string, boolean, array, hash, function
 
 - Operators:
-  - Arithmetic: +, -, *
-  - Relational: ==, !=, <, >
+  - Arithmetic: +, -, *, /, %, <<, >>
+  - Relational: ==, !=, <, >, <=, >=
+  - Logical: &&, ||
 
 - Control Flow:
   - if-else statements
-  - while loops
+  - while loops with break/continue
 
 - Built-in Functions:
   - print: print "Hello";
 
 - Comments:
-  - Not supported
+  - Supported: // this is a comment
 
 - Escape Characters in Strings:
-  - \\n, \\t, \\\\, \\"
+  - \n, \t, \\, \"
 `
 
 func Start(in io.Reader, out io.Writer) {

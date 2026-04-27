@@ -6,7 +6,6 @@ import (
 	"Nikium/parser"
 	"Nikium/repl"
 	"fmt"
-	"io/ioutil"
 	"os"
 )
 
@@ -16,7 +15,7 @@ func main() {
 	if len(os.Args) > 1 {
 		filePath := os.Args[1]
 
-		content, err := ioutil.ReadFile(filePath)
+		content, err := os.ReadFile(filePath)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error reading file: %s\n", err)
 			os.Exit(1)
@@ -33,7 +32,11 @@ func main() {
 			os.Exit(1)
 		}
 
-		evaluator.Eval(program, env)
+		result := evaluator.Eval(program, env)
+		if result != nil && result.Type() == evaluator.ERROR_OBJ {
+			fmt.Fprintln(os.Stderr, result.Inspect())
+			os.Exit(1)
+		}
 	} else {
 		repl.Start(os.Stdin, os.Stdout)
 	}

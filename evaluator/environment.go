@@ -2,6 +2,22 @@ package evaluator
 
 import (
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+)
+
+// --- Async state ---
+
+var (
+	asyncMu     sync.Mutex
+	asyncNextID int64
+	asyncJobs   = make(map[int64]chan Object)
 )
 
 type Environment struct {
@@ -27,6 +43,8 @@ func NewEnvironment() *Environment {
 				return &Integer{Value: int64(len(arg.Value))}
 			case *Array:
 				return &Integer{Value: int64(len(arg.Elements))}
+			case *Hash:
+				return &Integer{Value: int64(len(arg.Pairs))}
 			default:
 				return &Error{
 					Message: fmt.Sprintf("len: unsupported type %s", arg.Type()),
@@ -90,13 +108,415 @@ func NewEnvironment() *Environment {
 		},
 	})
 
+	// --- File IO ---
+
+	env.Set("file_read", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: fmt.Sprintf("file_read: expected 1 argument, got %d", len(args))}
+			}
+			path, ok := args[0].(*String)
+			if !ok {
+				return &Error{Message: "file_read: expected string path"}
+			}
+			data, err := os.ReadFile(path.Value)
+			if err != nil {
+				return &Error{Message: fmt.Sprintf("file_read: %s", err)}
+			}
+			return &String{Value: string(data)}
+		},
+	})
+
+	env.Set("file_write", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 2 {
+				return &Error{Message: fmt.Sprintf("file_write: expected 2 arguments, got %d", len(args))}
+			}
+			path, ok := args[0].(*String)
+			if !ok {
+				return &Error{Message: "file_write: first argument must be string path"}
+			}
+			data, ok := args[1].(*String)
+			if !ok {
+				return &Error{Message: "file_write: second argument must be string data"}
+			}
+			err := os.WriteFile(path.Value, []byte(data.Value), 0644)
+			if err != nil {
+				return &Error{Message: fmt.Sprintf("file_write: %s", err)}
+			}
+			return NULL
+		},
+	})
+
+	env.Set("file_append", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 2 {
+				return &Error{Message: fmt.Sprintf("file_append: expected 2 arguments, got %d", len(args))}
+			}
+			path, ok := args[0].(*String)
+			if !ok {
+				return &Error{Message: "file_append: first argument must be string path"}
+			}
+			data, ok := args[1].(*String)
+			if !ok {
+				return &Error{Message: "file_append: second argument must be string data"}
+			}
+			f, err := os.OpenFile(path.Value, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				return &Error{Message: fmt.Sprintf("file_append: %s", err)}
+			}
+			defer f.Close()
+			_, err = f.WriteString(data.Value)
+			if err != nil {
+				return &Error{Message: fmt.Sprintf("file_append: %s", err)}
+			}
+			return NULL
+		},
+	})
+
+	env.Set("file_exists", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: "file_exists: expected 1 argument"}
+			}
+			path, ok := args[0].(*String)
+			if !ok {
+				return &Error{Message: "file_exists: expected string path"}
+			}
+			_, err := os.Stat(path.Value)
+			if os.IsNotExist(err) {
+				return FALSE
+			}
+			return TRUE
+		},
+	})
+
+	env.Set("file_delete", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: "file_delete: expected 1 argument"}
+			}
+			path, ok := args[0].(*String)
+			if !ok {
+				return &Error{Message: "file_delete: expected string path"}
+			}
+			err := os.Remove(path.Value)
+			if err != nil {
+				return &Error{Message: fmt.Sprintf("file_delete: %s", err)}
+			}
+			return NULL
+		},
+	})
+
+	// --- Time ---
+
+	env.Set("time_now", &Function{
+		Native: func(args []Object) Object {
+			return &Integer{Value: time.Now().UnixMilli()}
+		},
+	})
+
+	env.Set("time_sleep", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: "time_sleep: expected 1 argument (ms)"}
+			}
+			ms, ok := args[0].(*Integer)
+			if !ok {
+				return &Error{Message: "time_sleep: expected integer milliseconds"}
+			}
+			time.Sleep(time.Duration(ms.Value) * time.Millisecond)
+			return NULL
+		},
+	})
+
+	env.Set("time_format", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: "time_format: expected 1 argument (unix_ms)"}
+			}
+			ms, ok := args[0].(*Integer)
+			if !ok {
+				return &Error{Message: "time_format: expected integer"}
+			}
+			t := time.UnixMilli(ms.Value)
+			return &String{Value: t.Format("2006-01-02 15:04:05")}
+		},
+	})
+
+	// --- Concurrency ---
+
+	env.Set("spawn", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: "spawn: expected 1 argument (function)"}
+			}
+			fn, ok := args[0].(*Function)
+			if !ok {
+				return &Error{Message: "spawn: expected function"}
+			}
+
+			asyncMu.Lock()
+			asyncNextID++
+			id := asyncNextID
+			ch := make(chan Object, 1)
+			asyncJobs[id] = ch
+			asyncMu.Unlock()
+
+			go func() {
+				result := applyFunction(fn, []Object{})
+				ch <- result
+			}()
+
+			return &Integer{Value: id}
+		},
+	})
+
+	env.Set("await", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: "await: expected 1 argument (task id)"}
+			}
+			id, ok := args[0].(*Integer)
+			if !ok {
+				return &Error{Message: "await: expected integer id"}
+			}
+
+			asyncMu.Lock()
+			ch, exists := asyncJobs[id.Value]
+			asyncMu.Unlock()
+
+			if !exists {
+				return &Error{Message: fmt.Sprintf("await: no task with id %d", id.Value)}
+			}
+
+			result := <-ch
+
+			asyncMu.Lock()
+			delete(asyncJobs, id.Value)
+			asyncMu.Unlock()
+
+			return result
+		},
+	})
+
+	// --- Network ---
+
+	env.Set("net_get", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: "net_get: expected 1 argument (url)"}
+			}
+			url, ok := args[0].(*String)
+			if !ok {
+				return &Error{Message: "net_get: expected string url"}
+			}
+			resp, err := http.Get(url.Value)
+			if err != nil {
+				return &Error{Message: fmt.Sprintf("net_get: %s", err)}
+			}
+			defer resp.Body.Close()
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return &Error{Message: fmt.Sprintf("net_get: %s", err)}
+			}
+			return &String{Value: string(body)}
+		},
+	})
+
+	env.Set("net_status", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: "net_status: expected 1 argument (url)"}
+			}
+			url, ok := args[0].(*String)
+			if !ok {
+				return &Error{Message: "net_status: expected string url"}
+			}
+			resp, err := http.Get(url.Value)
+			if err != nil {
+				return &Error{Message: fmt.Sprintf("net_status: %s", err)}
+			}
+			defer resp.Body.Close()
+			return &Integer{Value: int64(resp.StatusCode)}
+		},
+	})
+
+	// --- Build ---
+
+	env.Set("build", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: "build: expected 1 argument (shell command)"}
+			}
+			cmdStr, ok := args[0].(*String)
+			if !ok {
+				return &Error{Message: "build: expected string command"}
+			}
+			cmd := exec.Command("sh", "-c", cmdStr.Value)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				return &Error{Message: fmt.Sprintf("build: %s\n%s", err, string(output))}
+			}
+			return &String{Value: string(output)}
+		},
+	})
+
+	// --- Hash helpers ---
+
+	env.Set("keys", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: "keys: expected 1 argument"}
+			}
+			h, ok := args[0].(*Hash)
+			if !ok {
+				return &Error{Message: "keys: expected hash"}
+			}
+			keys := []Object{}
+			for _, pair := range h.Pairs {
+				keys = append(keys, pair.Key)
+			}
+			return &Array{Elements: keys}
+		},
+	})
+
+	env.Set("values", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: "values: expected 1 argument"}
+			}
+			h, ok := args[0].(*Hash)
+			if !ok {
+				return &Error{Message: "values: expected hash"}
+			}
+			vals := []Object{}
+			for _, pair := range h.Pairs {
+				vals = append(vals, pair.Value)
+			}
+			return &Array{Elements: vals}
+		},
+	})
+
+	env.Set("has_key", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 2 {
+				return &Error{Message: "has_key: expected 2 arguments (hash, key)"}
+			}
+			h, ok := args[0].(*Hash)
+			if !ok {
+				return &Error{Message: "has_key: first argument must be hash"}
+			}
+			hashable, ok := args[1].(Hashable)
+			if !ok {
+				return &Error{Message: "has_key: key not hashable"}
+			}
+			_, exists := h.Pairs[hashable.HashKey()]
+			return nativeBoolToBooleanObject(exists)
+		},
+	})
+
+	env.Set("set", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 3 {
+				return &Error{Message: "set: expected 3 arguments (hash, key, value)"}
+			}
+			h, ok := args[0].(*Hash)
+			if !ok {
+				return &Error{Message: "set: first argument must be hash"}
+			}
+			hashable, ok := args[1].(Hashable)
+			if !ok {
+				return &Error{Message: "set: key not hashable"}
+			}
+			newPairs := make(map[HashKey]HashPair)
+			for k, v := range h.Pairs {
+				newPairs[k] = v
+			}
+			hk := hashable.HashKey()
+			newPairs[hk] = HashPair{Key: args[1], Value: args[2]}
+			return &Hash{Pairs: newPairs}
+		},
+	})
+
+	env.Set("delete_key", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 2 {
+				return &Error{Message: "delete_key: expected 2 arguments (hash, key)"}
+			}
+			h, ok := args[0].(*Hash)
+			if !ok {
+				return &Error{Message: "delete_key: first argument must be hash"}
+			}
+			hashable, ok := args[1].(Hashable)
+			if !ok {
+				return &Error{Message: "delete_key: key not hashable"}
+			}
+			newPairs := make(map[HashKey]HashPair)
+			for k, v := range h.Pairs {
+				newPairs[k] = v
+			}
+			delete(newPairs, hashable.HashKey())
+			return &Hash{Pairs: newPairs}
+		},
+	})
+
+	// --- Utility ---
+
+	env.Set("type", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: "type: expected 1 argument"}
+			}
+			return &String{Value: string(args[0].Type())}
+		},
+	})
+
+	env.Set("str", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: "str: expected 1 argument"}
+			}
+			return &String{Value: args[0].Inspect()}
+		},
+	})
+
+	env.Set("int_parse", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: "int_parse: expected 1 argument"}
+			}
+			s, ok := args[0].(*String)
+			if !ok {
+				return &Error{Message: "int_parse: expected string"}
+			}
+			val, err := strconv.ParseInt(strings.TrimSpace(s.Value), 10, 64)
+			if err != nil {
+				return &Error{Message: fmt.Sprintf("int_parse: %s", err)}
+			}
+			return &Integer{Value: val}
+		},
+	})
+
+	env.Set("exit", &Function{
+		Native: func(args []Object) Object {
+			code := 0
+			if len(args) == 1 {
+				if n, ok := args[0].(*Integer); ok {
+					code = int(n.Value)
+				}
+			}
+			os.Exit(code)
+			return NULL
+		},
+	})
+
 	return env
 }
 
 func NewEnclosedEnvironment(outer *Environment) *Environment {
-	env := NewEnvironment()
-	env.outer = outer
-	return env
+	s := make(map[string]Object)
+	return &Environment{store: s, outer: outer}
 }
 
 func (e *Environment) Get(name string) (Object, bool) {
@@ -111,3 +531,4 @@ func (e *Environment) Set(name string, val Object) Object {
 	e.store[name] = val
 	return val
 }
+
