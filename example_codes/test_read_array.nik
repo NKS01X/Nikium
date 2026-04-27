@@ -4,6 +4,7 @@ arr_len = 0;
 n = len(s);
 cur = 0;
 i = 0;
+j = 0;
 
 while i < n {
     if s[i] == " " {
