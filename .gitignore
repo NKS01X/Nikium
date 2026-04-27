@@ -2,3 +2,6 @@
 *.un~
 *~
 nikium.exe
+*.nik
+.agents/
+graphify-out/

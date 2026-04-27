@@ -19,7 +19,8 @@ The language is interpreted by an interpreter written in Go. This repository con
 *   **Curly-Brace Blocks:** Nikium uses curly braces to define code blocks for `if`, `else`, `while`, and functions.
 *   **Control Flow:** Supports `if-else` statements and `while` loops.
 *   **Functions:** First-class functions are supported with the `fn` keyword.
-*   **Rich Data Types:** Supports `i64` integers, `string`s, and `bool`eans.
+*   **Rich Data Types:** Supports `i64` integers, `string`s, `bool`eans, and arrays.
+*   **Logical & Relational Operators:** Features logic operators (`&&`, `||`) and standard relationals.
 *   **REPL:** Nikium comes with a REPL (Read-Eval-Print Loop) for interactive programming.
 *   **File Execution:** Execute Nikium programs from `.nik` files.
 
@@ -76,11 +77,13 @@ is_active = true;
 *   `i64`: 64-bit signed integer
 *   `string`: A sequence of characters enclosed in double quotes (`"`)
 *   `bool`: `true` or `false`
+*   `array`: Arrays enclosed in `[]`
 
 ### 3. Operators
 
 *   **Arithmetic:** `+`, `-`, `*`, `/`
 *   **Relational:** `==`, `!=`, `<`, `>`
+*   **Logical:** `&&`, `||`, `!`
 
 ### 4. Control Flow
 

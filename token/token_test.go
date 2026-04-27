@@ -22,7 +22,7 @@ func TestGetTokenType(t *testing.T) {
 
 	for _, tt := range tests {
 		got := GetTokenType(tt.literal)
-		if got != tt.want {
+		if string(got) != tt.want {
 			t.Errorf("GetTokenType(%q) = %q; want %q", tt.literal, got, tt.want)
 		}
 	}

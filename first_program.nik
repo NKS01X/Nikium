@@ -1,2 +1,12 @@
-a = readArray();
-print(a[0]);
+a = 15;
+b = 10;
+
+sum = fn(a,b) {
+    return a + b;
+};
+
+print sum(a,b); 
+
+
+
+

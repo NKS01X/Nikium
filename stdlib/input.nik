@@ -19,18 +19,4 @@ readString = fn() {
     return result;
 };
 
-readInt = fn() {
-    c = readLine();
 
-    l = len(c);
-
-    i = 0;
-    ans = 0;
-
-    while i < l {
-        ans = ans * 10 + (c[i] - "0");
-        i = i + 1;
-    }
-
-    Print(ans);
-};
