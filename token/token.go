@@ -39,6 +39,8 @@ const (
 	AND    = "&&"
 	OR     = "||"
 
+	AMPERSAND = "&"
+
 	DOT    = "."
 	ARROW  = "->"
 
@@ -70,6 +72,7 @@ const (
 	LOAD     = "LOAD"
 	STRUCT   = "STRUCT"
 	NEW      = "NEW"
+	GENERIC  = "GENERIC"
 )
 
 // Keywords map
@@ -89,6 +92,7 @@ var keywords = map[string]TokenType{
 	"load":     LOAD,
 	"struct":   STRUCT,
 	"new":      NEW,
+	"generic":  GENERIC,
 }
 
 // Lookup function

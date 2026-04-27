@@ -1,6 +1,7 @@
 p = struct {
 	name:string,//have to declare type 
 	age:int,//have to declare type
+	child: *p,
 };
 
 p* nn = new p();
@@ -10,8 +11,16 @@ p nn1();
 nn1.name = "singh";
 nn1.age = 22;
 
+//p* ch = new p();
+//ch->name = "child";
+//nn->child = ch;
+
+nn->child = &nn1;
+
+print nn->child->name;
+
 print nn->name;
-print nn1.name;
+//print nn1.name;
 for(i = 0; i < 5; ++i) {
 	print i;
 }

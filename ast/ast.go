@@ -53,16 +53,18 @@ func (b *Boolean) TokenLiteral() string { return b.Token.Literal }
 func (b *Boolean) String() string       { return b.Token.Literal }
 
 type LetStatement struct {
-	Token token.Token // the 'let' token
-	Name  *Identifier
-	Value Expression
-	Type  string
+	Token       token.Token // the 'let' token
+	Name        *Identifier
+	Value       Expression
+	Type        string
+	GenericType string // e.g. "T" from generic<T>
 }
 
 type FunctionLiteral struct {
-	Token      token.Token // the 'fn' token
-	Parameters []*Identifier
-	Body       *BlockStatement
+	Token         token.Token // the 'fn' token
+	GenericType   string      // e.g. "T"
+	Parameters    []*Identifier // Parameters will remain identifiers 
+	Body          *BlockStatement
 }
 
 func (fl *FunctionLiteral) expressionNode()      {}
@@ -88,6 +90,7 @@ func (fl *FunctionLiteral) String() string {
 type CallExpression struct {
 	Token     token.Token // the '(' token
 	Function  Expression  // Identifier or FunctionLiteral
+	TypeArg   string      // e.g. "int" from func<int>(...)
 	Arguments []Expression
 }
 
@@ -407,8 +410,9 @@ func (hl *HashLiteral) String() string {
 }
 
 type StructLiteral struct {
-	Token token.Token // the 'struct' token
-	Pairs map[string]Expression
+	Token       token.Token // the 'struct' token
+	GenericType string      // e.g. "T"
+	Pairs       map[string]Expression
 }
 
 func (sl *StructLiteral) expressionNode()      {}
@@ -491,11 +495,12 @@ func (ae *AssignExpression) String() string {
 
 
 type VarDeclaration struct {
-	Token     token.Token // The 'IDENT' token of the type
-	Type      string
-	IsPointer bool
-	Name      *Identifier
-	Value     Expression
+	Token       token.Token // The 'IDENT' token of the type
+	Type        string
+	GenericType string // e.g. "T"
+	IsPointer   bool
+	Name        *Identifier
+	Value       Expression
 }
 
 func (vd *VarDeclaration) statementNode()       {}
@@ -519,9 +524,10 @@ func (vd *VarDeclaration) String() string {
 }
 
 type NewExpression struct {
-	Token     token.Token // The 'new' token
-	Class     string
-	Arguments []Expression
+	Token       token.Token // The 'new' token
+	Class       string
+	GenericType string      // e.g. "int"
+	Arguments   []Expression
 }
 
 func (ne *NewExpression) expressionNode()      {}

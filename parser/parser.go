@@ -76,6 +76,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.FALSE, p.parseBoolean)
 	p.registerPrefix(token.BANG, p.parsePrefixExpression)
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
+	p.registerPrefix(token.ASTERISK, p.parsePrefixExpression)
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression)
 	p.registerPrefix(token.IF, p.parseIfStatement)
 	p.registerPrefix(token.WHILE, p.parseWhileStatement)
@@ -162,7 +163,14 @@ func (p *Parser) parseExpressionList(end token.TokenType) []ast.Expression {
 
 func (p *Parser) parseStatement() ast.Statement {
 	switch p.curToken.Type {
+	case token.GENERIC:
+		// generic<T> name = struct{...}; or generic<T> name = fn(...){};
+		return p.parseGenericLetStatement()
 	case token.IDENT:
+		if p.peekToken.Type == token.LT {
+			// p<int>* name or p<int> name
+			return p.parseVarDeclaration(false)
+		}
 		if p.peekToken.Type == token.ASSIGN || p.peekToken.Type == token.COLON {
 			return p.parseLetStatement()
 		}
@@ -227,9 +235,66 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	return stmt
 }
 
+// parseGenericLetStatement handles: generic<T> name = struct{...}; or generic<T> name = fn(...){};
+func (p *Parser) parseGenericLetStatement() *ast.LetStatement {
+	stmt := &ast.LetStatement{Token: p.curToken}
+
+	// consume < T >
+	if !p.expectPeek(token.LT) {
+		return nil
+	}
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+	stmt.GenericType = p.curToken.Literal // e.g. "T"
+	if !p.expectPeek(token.GT) {
+		return nil
+	}
+
+	// now expect name
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	if !p.expectPeek(token.ASSIGN) {
+		return nil
+	}
+	p.nextToken()
+	stmt.Value = p.parseExpression(LOWEST)
+
+	// propagate generic type to the parsed value node
+	if sl, ok := stmt.Value.(*ast.StructLiteral); ok {
+		sl.GenericType = stmt.GenericType
+	} else if fl, ok := stmt.Value.(*ast.FunctionLiteral); ok {
+		fl.GenericType = stmt.GenericType
+	}
+
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+	return stmt
+}
+
 func (p *Parser) parseVarDeclaration(isPointer bool) *ast.VarDeclaration {
 	decl := &ast.VarDeclaration{Token: p.curToken, Type: p.curToken.Literal, IsPointer: isPointer}
-	if isPointer {
+
+	// Check for type args: p<int> or p<int>*
+	if p.peekTokenIs(token.LT) {
+		p.nextToken() // <
+		if p.peekTokenIs(token.IDENT) {
+			p.nextToken() // type arg e.g. "int"
+			decl.GenericType = p.curToken.Literal
+		}
+		if p.peekTokenIs(token.GT) {
+			p.nextToken() // >
+		}
+		// allow pointer after >: p<int>*
+		if p.peekTokenIs(token.ASTERISK) {
+			decl.IsPointer = true
+			p.nextToken()
+		}
+	} else if isPointer {
 		p.nextToken() // move past curType, so now on *
 	}
 	if !p.expectPeek(token.IDENT) {
@@ -355,6 +420,23 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 }
 
 func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
+	// Detect generic function call: ident<type>(args)
+	// cur token is <, left is Identifier, peek is IDENT (type arg)
+	if p.curToken.Literal == "<" {
+		if _, isIdent := left.(*ast.Identifier); isIdent {
+			// peek ahead: if next is IDENT and then > then ( → generic call
+			if p.peekTokenIs(token.IDENT) && p.peekPeekTokenIs(token.GT) {
+				p.nextToken() // move to type arg
+				typeArg := p.curToken.Literal
+				p.nextToken() // move to >
+				if p.peekTokenIs(token.LPAREN) {
+					p.nextToken() // move to (
+					return p.parseGenericCallExpression(left, typeArg)
+				}
+			}
+		}
+	}
+
 	expr := &ast.BinaryExpression{
 		Token:    p.curToken,
 		Left:     left,
@@ -465,6 +547,14 @@ func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 
 func (p *Parser) parseCallExpression(fn ast.Expression) ast.Expression {
 	exp := &ast.CallExpression{Token: p.curToken, Function: fn}
+	exp.Arguments = p.parseCallArguments()
+	return exp
+}
+
+// parseGenericCallExpression handles: func<int>(args...)
+// Called from parseInfixExpression when we detect identifier < type > (
+func (p *Parser) parseGenericCallExpression(fn ast.Expression, typeArg string) ast.Expression {
+	exp := &ast.CallExpression{Token: p.curToken, Function: fn, TypeArg: typeArg}
 	exp.Arguments = p.parseCallArguments()
 	return exp
 }
@@ -612,6 +702,18 @@ func (p *Parser) parseNewExpression() ast.Expression {
 		return nil
 	}
 	exp.Class = p.curToken.Literal
+
+	// parse type args: new p<int>()
+	if p.peekTokenIs(token.LT) {
+		p.nextToken() // <
+		if p.peekTokenIs(token.IDENT) {
+			p.nextToken() // type arg e.g. "int"
+			exp.GenericType = p.curToken.Literal
+		}
+		if p.peekTokenIs(token.GT) {
+			p.nextToken() // >
+		}
+	}
 
 	if !p.expectPeek(token.LPAREN) {
 		return nil

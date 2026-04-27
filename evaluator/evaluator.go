@@ -38,7 +38,14 @@ func Eval(node ast.Node, env *Environment) Object {
 			}
 		} else {
 			if strct, isStruct := typeObj.(*Struct); isStruct {
-				val = instantiateStruct(strct)
+				instance := instantiateStruct(strct)
+				// resolve generic type args: p<int> name
+				if node.GenericType != "" && strct.GenericTypes != nil {
+					for k := range instance.GenericTypes {
+						instance.GenericTypes[k] = node.GenericType
+					}
+				}
+				val = instance
 			} else {
 				val = NULL
 			}
@@ -61,6 +68,12 @@ func Eval(node ast.Node, env *Environment) Object {
 		}
 		if strct, isStruct := typeObj.(*Struct); isStruct {
 			instance := instantiateStruct(strct)
+			// resolve generic type args: new p<int>()
+			if node.GenericType != "" && instance.GenericTypes != nil {
+				for k := range instance.GenericTypes {
+					instance.GenericTypes[k] = node.GenericType
+				}
+			}
 			return &Pointer{Value: instance}
 		}
 		return newError("cannot instantiate %s", node.Class)
@@ -69,6 +82,17 @@ func Eval(node ast.Node, env *Environment) Object {
 		val := Eval(node.Value, env)
 		if isError(val) {
 			return val
+		}
+		// propagate generic type param name to struct/function object
+		if node.GenericType != "" {
+			if strct, ok := val.(*Struct); ok {
+				if strct.GenericTypes == nil {
+					strct.GenericTypes = make(map[string]string)
+				}
+				strct.GenericTypes[node.GenericType] = "" // unresolved
+			} else if fn, ok := val.(*Function); ok {
+				fn.GenericType = node.GenericType
+			}
 		}
 		env.Set(node.Name.Value, val)
 		return NULL
@@ -137,6 +161,9 @@ func Eval(node ast.Node, env *Environment) Object {
 	case *ast.PrefixExpression:
 		if node.Operator == "++" {
 			return evalIncExpression(node, env)
+		}
+		if node.Operator == "*" {
+			return NULL
 		}
 		right := Eval(node.Right, env)
 		if isError(right) {
@@ -231,9 +258,10 @@ func Eval(node ast.Node, env *Environment) Object {
 
 	case *ast.FunctionLiteral:
 		return &Function{
-			Parameters: node.Parameters,
-			Body:       node.Body,
-			Env:        env,
+			Parameters:  node.Parameters,
+			Body:        node.Body,
+			Env:         env,
+			GenericType: node.GenericType,
 		}
 
 	case *ast.CallExpression:
@@ -245,7 +273,7 @@ func Eval(node ast.Node, env *Environment) Object {
 		if len(args) == 1 && isError(args[0]) {
 			return args[0]
 		}
-		return applyFunction(function, args)
+		return applyFunction(function, args, node.TypeArg)
 
 	case *ast.IndexExpression:
 		left := Eval(node.Left, env)
@@ -429,11 +457,19 @@ func evalExpressions(exps []ast.Expression, env *Environment) []Object {
 	return result
 }
 
-func applyFunction(fn Object, args []Object) Object {
+func applyFunction(fn Object, args []Object, typeArg string) Object {
 	switch fn := fn.(type) {
 	case *Function:
 		if fn.Native != nil {
 			return fn.Native(args)
+		}
+		// type-check args if generic
+		if typeArg != "" && fn.GenericType != "" {
+			for _, arg := range args {
+				if !typeMatchesGeneric(arg, typeArg) {
+					return newError("generic type mismatch: expected %s, got %s", typeArg, arg.Type())
+				}
+			}
 		}
 		env := NewEnclosedEnvironment(fn.Env)
 		for i, param := range fn.Parameters {
@@ -655,6 +691,15 @@ func isError(obj Object) bool {
 func evalStructLiteral(node *ast.StructLiteral, env *Environment) Object {
 	properties := make(map[string]Object)
 	for key, valueNode := range node.Pairs {
+		// If this is a generic struct definition, fields whose type/value
+		// match the generic param should be evaluated as placeholders (NULL)
+		if node.GenericType != "" {
+			if ident, ok := valueNode.(*ast.Identifier); ok && ident.Value == node.GenericType {
+				properties[key] = NULL
+				continue
+			}
+		}
+
 		value := Eval(valueNode, env)
 		if isError(value) {
 			return value
@@ -732,14 +777,51 @@ func instantiateStruct(s *Struct) *Struct {
 	for k, v := range s.Properties {
 		newProps[k] = v
 	}
-	return &Struct{Properties: newProps}
+	// copy generic types map
+	var gt map[string]string
+	if s.GenericTypes != nil {
+		gt = make(map[string]string)
+		for k, v := range s.GenericTypes {
+			gt[k] = v
+		}
+	}
+	return &Struct{Properties: newProps, GenericTypes: gt}
 }
 
 func evalPropertyAssignment(object Object, property *ast.Identifier, val Object) Object {
 	if s, ok := object.(*Struct); ok {
+		// type-check against generic types
+		if s.GenericTypes != nil {
+			// check if the property's original value was a generic placeholder
+			if existing, exists := s.Properties[property.Value]; exists {
+				if existing.Type() == NULL_OBJ {
+					// property was unset (generic placeholder), check against resolved type
+					for _, resolvedType := range s.GenericTypes {
+						if resolvedType != "" && !typeMatchesGeneric(val, resolvedType) {
+							return newError("generic type mismatch: property %s expects %s, got %s",
+								property.Value, resolvedType, val.Type())
+						}
+					}
+				}
+			}
+		}
 		s.Properties[property.Value] = val
 		return val
 	}
 	return newError("property assignment not supported on %s", object.Type())
+}
+
+// typeMatchesGeneric checks if an object matches a generic type name
+func typeMatchesGeneric(obj Object, typeName string) bool {
+	switch typeName {
+	case "int":
+		return obj.Type() == INTEGER_OBJ
+	case "string":
+		return obj.Type() == STRING_OBJ
+	case "bool":
+		return obj.Type() == BOOLEAN_OBJ
+	default:
+		return true // unknown types pass through
+	}
 }
 

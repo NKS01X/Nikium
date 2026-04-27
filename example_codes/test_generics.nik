@@ -1,0 +1,31 @@
+// generic struct
+generic<T> p = struct {
+	value: T,
+	age: int,
+};
+
+// generic function
+generic<T> identity = fn(a) {
+	return a;
+};
+
+// instantiate with int via new (heap)
+p<int>* myStruct = new p<int>();
+myStruct->value = 42;
+myStruct->age = 10;
+print myStruct->value;
+print myStruct->age;
+
+// stack alloc with string
+p<string> local();
+local.value = "hello";
+local.age = 5;
+print local.value;
+print local.age;
+
+// generic function call
+int a = identity<int>(5);
+print a;
+string b = identity<string>("world");
+print b;
+

@@ -264,7 +264,7 @@ func NewEnvironment() *Environment {
 			asyncMu.Unlock()
 
 			go func() {
-				result := applyFunction(fn, []Object{})
+				result := applyFunction(fn, []Object{}, "")
 				ch <- result
 			}()
 

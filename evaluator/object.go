@@ -128,10 +128,11 @@ func (e *Error) Type() ObjectType { return ERROR_OBJ }
 func (e *Error) Inspect() string  { return "ERROR: " + e.Message }
 
 type Function struct {
-	Parameters []*ast.Identifier
-	Body       *ast.BlockStatement
-	Env        *Environment
-	Native     NativeFn
+	Parameters  []*ast.Identifier
+	Body        *ast.BlockStatement
+	Env         *Environment
+	Native      NativeFn
+	GenericType string // e.g. "T" — unresolved generic param name
 }
 
 func (f *Function) Type() ObjectType {
@@ -193,7 +194,8 @@ func (a *Array) Inspect() string {
 }
 
 type Struct struct {
-	Properties map[string]Object
+	Properties   map[string]Object
+	GenericTypes map[string]string // e.g. "T" → "int" — resolved generic bindings
 }
 
 func (s *Struct) Type() ObjectType { return STRUCT_OBJ }
