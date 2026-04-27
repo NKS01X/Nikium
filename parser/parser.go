@@ -11,6 +11,7 @@ import (
 const (
 	_ int = iota
 	LOWEST
+	ASSIGNMENT
 	LOGICAL_OR
 	LOGICAL_AND
 	EQUALS
@@ -23,6 +24,7 @@ const (
 )
 
 var precedences = map[token.TokenType]int{
+	token.ASSIGN:   ASSIGNMENT,
 	token.OR:       LOGICAL_OR,
 	token.AND:      LOGICAL_AND,
 	token.EQ:       EQUALS,
@@ -40,6 +42,8 @@ var precedences = map[token.TokenType]int{
 	token.MOD:      PRODUCT,
 	token.LPAREN:   CALL,
 	token.LBRACKET: INDEX,
+	token.DOT:      INDEX,
+	token.ARROW:    INDEX,
 }
 
 type (
@@ -75,11 +79,16 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression)
 	p.registerPrefix(token.IF, p.parseIfStatement)
 	p.registerPrefix(token.WHILE, p.parseWhileStatement)
+	p.registerPrefix(token.FOR, p.parseForStatement)
 	p.registerPrefix(token.FUNCTION, p.parseFunctionLiteral)
 	p.registerPrefix(token.LBRACKET, p.parseArrayLiteral)
 	p.registerPrefix(token.LBRACE, p.parseHashLiteral)
+	p.registerPrefix(token.STRUCT, p.parseStructLiteral)
+	p.registerPrefix(token.NEW, p.parseNewExpression)
+	p.registerPrefix(token.INC, p.parsePrefixExpression)
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
+	p.registerInfix(token.ASSIGN, p.parseAssignExpression)
 	p.registerInfix(token.PLUS, p.parseInfixExpression)
 	p.registerInfix(token.MINUS, p.parseInfixExpression)
 	p.registerInfix(token.SLASH, p.parseInfixExpression)
@@ -97,6 +106,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.OR, p.parseInfixExpression)
 	p.registerInfix(token.LPAREN, p.parseCallExpression)
 	p.registerInfix(token.LBRACKET, p.parseIndexExpression)
+	p.registerInfix(token.DOT, p.parsePropertyAccessExpression)
+	p.registerInfix(token.ARROW, p.parsePropertyAccessExpression)
 
 	p.nextToken()
 	p.nextToken()
@@ -155,6 +166,12 @@ func (p *Parser) parseStatement() ast.Statement {
 		if p.peekToken.Type == token.ASSIGN || p.peekToken.Type == token.COLON {
 			return p.parseLetStatement()
 		}
+		if p.peekToken.Type == token.IDENT {
+			return p.parseVarDeclaration(false)
+		}
+		if p.peekToken.Type == token.ASTERISK && p.peekPeekTokenIs(token.IDENT) {
+			return p.parseVarDeclaration(true)
+		}
 		return p.parseExpressionStatement()
 	case token.PRINT:
 		return p.parsePrintStatement()
@@ -208,6 +225,33 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 		p.nextToken()
 	}
 	return stmt
+}
+
+func (p *Parser) parseVarDeclaration(isPointer bool) *ast.VarDeclaration {
+	decl := &ast.VarDeclaration{Token: p.curToken, Type: p.curToken.Literal, IsPointer: isPointer}
+	if isPointer {
+		p.nextToken() // move past curType, so now on *
+	}
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+	decl.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	if p.peekTokenIs(token.LPAREN) {
+		p.nextToken()
+		if !p.expectPeek(token.RPAREN) {
+			return nil
+		}
+	} else if p.peekTokenIs(token.ASSIGN) {
+		p.nextToken()
+		p.nextToken()
+		decl.Value = p.parseExpression(LOWEST)
+	}
+
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+	return decl
 }
 
 func (p *Parser) parsePrintStatement() *ast.PrintStatement {
@@ -491,6 +535,12 @@ func (p *Parser) parseHashLiteral() ast.Expression {
 func (p *Parser) curTokenIs(t token.TokenType) bool  { return p.curToken.Type == t }
 func (p *Parser) peekTokenIs(t token.TokenType) bool { return p.peekToken.Type == t }
 
+func (p *Parser) peekPeekTokenIs(t token.TokenType) bool {
+	lClone := *p.l
+	next := lClone.NextToken()
+	return next.Type == t
+}
+
 func (p *Parser) expectPeek(t token.TokenType) bool {
 	if p.peekTokenIs(t) {
 		p.nextToken()
@@ -521,4 +571,112 @@ func (p *Parser) registerPrefix(t token.TokenType, fn prefixParseFn) {
 
 func (p *Parser) registerInfix(t token.TokenType, fn infixParseFn) {
 	p.infixParseFns[t] = fn
+}
+
+func (p *Parser) parseStructLiteral() ast.Expression {
+	strct := &ast.StructLiteral{Token: p.curToken}
+	strct.Pairs = make(map[string]ast.Expression)
+
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+
+	for !p.peekTokenIs(token.RBRACE) {
+		p.nextToken()
+		if p.curToken.Type != token.IDENT {
+			return nil
+		}
+		key := p.curToken.Literal
+
+		if !p.expectPeek(token.COLON) {
+			return nil
+		}
+		p.nextToken()
+		value := p.parseExpression(LOWEST)
+
+		strct.Pairs[key] = value
+
+		if !p.peekTokenIs(token.RBRACE) && !p.expectPeek(token.COMMA) {
+			return nil
+		}
+	}
+	if !p.expectPeek(token.RBRACE) {
+		return nil
+	}
+	return strct
+}
+
+func (p *Parser) parseNewExpression() ast.Expression {
+	exp := &ast.NewExpression{Token: p.curToken}
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+	exp.Class = p.curToken.Literal
+
+	if !p.expectPeek(token.LPAREN) {
+		return nil
+	}
+	exp.Arguments = p.parseCallArguments()
+	return exp
+}
+
+func (p *Parser) parseAssignExpression(left ast.Expression) ast.Expression {
+	exp := &ast.AssignExpression{Token: p.curToken, Left: left}
+	p.nextToken()
+	exp.Value = p.parseExpression(LOWEST)
+	return exp
+}
+
+func (p *Parser) parsePropertyAccessExpression(left ast.Expression) ast.Expression {
+	exp := &ast.PropertyAccessExpression{Token: p.curToken, Object: left}
+	p.nextToken() 
+	if p.curToken.Type != token.IDENT {
+		p.errors = append(p.errors, "expected identifier after property access")
+		return nil
+	}
+	exp.Property = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	return exp
+}
+
+func (p *Parser) parseForStatement() ast.Expression {
+	expr := &ast.ForStatement{Token: p.curToken}
+	
+	if !p.expectPeek(token.LPAREN) {
+		return nil
+	}
+	p.nextToken()
+	
+	if !p.curTokenIs(token.SEMICOLON) {
+		expr.Init = p.parseStatement()
+	}
+	for !p.curTokenIs(token.SEMICOLON) && p.curToken.Type != token.EOF {
+		p.nextToken()
+	}
+	if p.curTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+	
+	if !p.curTokenIs(token.SEMICOLON) {
+		expr.Condition = p.parseExpression(LOWEST)
+	}
+	for !p.curTokenIs(token.SEMICOLON) && p.curToken.Type != token.EOF {
+		p.nextToken()
+	}
+	if p.curTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+	
+	if !p.curTokenIs(token.RPAREN) {
+		expr.Post = p.parseStatement()
+	}
+	for !p.curTokenIs(token.RPAREN) && p.curToken.Type != token.EOF {
+		p.nextToken()
+	}
+	
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+	expr.Body = p.parseBlockStatement()
+
+	return expr
 }

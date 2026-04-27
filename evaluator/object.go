@@ -23,6 +23,8 @@ const (
 	NATIVE_OBJ       = "NATIVE"
 	ARRAY_OBJ        = "ARRAY"
 	HASH_OBJ         = "HASH"
+	STRUCT_OBJ       = "STRUCT"
+	POINTER_OBJ      = "POINTER"
 	BREAK_OBJ        = "BREAK"
 	CONTINUE_OBJ     = "CONTINUE"
 )
@@ -189,3 +191,33 @@ func (a *Array) Inspect() string {
 	out.WriteString("]")
 	return out.String()
 }
+
+type Struct struct {
+	Properties map[string]Object
+}
+
+func (s *Struct) Type() ObjectType { return STRUCT_OBJ }
+func (s *Struct) Inspect() string {
+	var out strings.Builder
+	out.WriteString("struct{")
+	i := 0
+	for k, v := range s.Properties {
+		if i > 0 {
+			out.WriteString(", ")
+		}
+		out.WriteString(k)
+		out.WriteString(": ")
+		out.WriteString(v.Inspect())
+		i++
+	}
+	out.WriteString("}")
+	return out.String()
+}
+
+type Pointer struct {
+	Value Object
+}
+
+func (p *Pointer) Type() ObjectType { return POINTER_OBJ }
+func (p *Pointer) Inspect() string  { return "*" + p.Value.Inspect() }
+

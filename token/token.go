@@ -20,6 +20,7 @@ const (
 	// Operators
 	ASSIGN   = "="
 	PLUS     = "+"
+	INC      = "++"
 	MINUS    = "-"
 	BANG     = "!"
 	ASTERISK = "*"
@@ -37,6 +38,9 @@ const (
 	NOT_EQ = "!="
 	AND    = "&&"
 	OR     = "||"
+
+	DOT    = "."
+	ARROW  = "->"
 
 	// Delimiters
 	COLON     = ":"
@@ -60,9 +64,12 @@ const (
 	RETURN   = "RETURN"
 	PRINT    = "PRINT"
 	WHILE    = "WHILE"
+	FOR      = "FOR"
 	BREAK    = "BREAK"
 	CONTINUE = "CONTINUE"
 	LOAD     = "LOAD"
+	STRUCT   = "STRUCT"
+	NEW      = "NEW"
 )
 
 // Keywords map
@@ -76,9 +83,12 @@ var keywords = map[string]TokenType{
 	"return":   RETURN,
 	"print":    PRINT,
 	"while":    WHILE,
+	"for":      FOR,
 	"break":    BREAK,
 	"continue": CONTINUE,
 	"load":     LOAD,
+	"struct":   STRUCT,
+	"new":      NEW,
 }
 
 // Lookup function

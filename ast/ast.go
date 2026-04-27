@@ -405,3 +405,132 @@ func (hl *HashLiteral) String() string {
 	out.WriteString("}")
 	return out.String()
 }
+
+type StructLiteral struct {
+	Token token.Token // the 'struct' token
+	Pairs map[string]Expression
+}
+
+func (sl *StructLiteral) expressionNode()      {}
+func (sl *StructLiteral) TokenLiteral() string { return sl.Token.Literal }
+func (sl *StructLiteral) String() string {
+	var out strings.Builder
+	out.WriteString("struct{")
+	i := 0
+	for k, v := range sl.Pairs {
+		if i > 0 {
+			out.WriteString(", ")
+		}
+		out.WriteString(k)
+		out.WriteString(": ")
+		out.WriteString(v.String())
+		i++
+	}
+	out.WriteString("}")
+	return out.String()
+}
+
+type PropertyAccessExpression struct {
+	Token    token.Token // The . or -> token
+	Object   Expression
+	Property *Identifier
+}
+
+func (pa *PropertyAccessExpression) expressionNode()      {}
+func (pa *PropertyAccessExpression) TokenLiteral() string { return pa.Token.Literal }
+func (pa *PropertyAccessExpression) String() string {
+	var out strings.Builder
+	out.WriteString("(")
+	out.WriteString(pa.Object.String())
+	out.WriteString(pa.Token.Literal)
+	out.WriteString(pa.Property.String())
+	out.WriteString(")")
+	return out.String()
+}
+
+type ForStatement struct {
+	Token     token.Token // The 'for' token
+	Init      Statement
+	Condition Expression
+	Post      Statement
+	Body      *BlockStatement
+}
+
+func (fs *ForStatement) expressionNode()      {}
+func (fs *ForStatement) TokenLiteral() string { return fs.Token.Literal }
+func (fs *ForStatement) String() string {
+	var out strings.Builder
+	out.WriteString("for(")
+	if fs.Init != nil {
+		out.WriteString(fs.Init.String())
+	}
+	out.WriteString(" ")
+	if fs.Condition != nil {
+		out.WriteString(fs.Condition.String())
+	}
+	out.WriteString("; ")
+	if fs.Post != nil {
+		out.WriteString(fs.Post.String())
+	}
+	out.WriteString(") ")
+	out.WriteString(fs.Body.String())
+	return out.String()
+}
+
+type AssignExpression struct {
+	Token token.Token // "="
+	Left  Expression
+	Value Expression
+}
+
+func (ae *AssignExpression) expressionNode()      {}
+func (ae *AssignExpression) TokenLiteral() string { return ae.Token.Literal }
+func (ae *AssignExpression) String() string {
+	return "(" + ae.Left.String() + " = " + ae.Value.String() + ")"
+}
+
+
+type VarDeclaration struct {
+	Token     token.Token // The 'IDENT' token of the type
+	Type      string
+	IsPointer bool
+	Name      *Identifier
+	Value     Expression
+}
+
+func (vd *VarDeclaration) statementNode()       {}
+func (vd *VarDeclaration) TokenLiteral() string { return vd.Token.Literal }
+func (vd *VarDeclaration) String() string {
+	var out strings.Builder
+	out.WriteString(vd.Type)
+	if vd.IsPointer {
+		out.WriteString("*")
+	}
+	out.WriteString(" ")
+	out.WriteString(vd.Name.String())
+
+	if vd.Value != nil {
+		out.WriteString(" = ")
+		out.WriteString(vd.Value.String())
+	}
+	out.WriteString(";")
+
+	return out.String()
+}
+
+type NewExpression struct {
+	Token     token.Token // The 'new' token
+	Class     string
+	Arguments []Expression
+}
+
+func (ne *NewExpression) expressionNode()      {}
+func (ne *NewExpression) TokenLiteral() string { return ne.Token.Literal }
+func (ne *NewExpression) String() string {
+	var out strings.Builder
+	out.WriteString("new ")
+	out.WriteString(ne.Class)
+	out.WriteString("()")
+	return out.String()
+}
+

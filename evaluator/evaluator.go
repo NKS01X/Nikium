@@ -27,6 +27,44 @@ func Eval(node ast.Node, env *Environment) Object {
 	case *ast.ExpressionStatement:
 		return Eval(node.Expression, env)
 
+	case *ast.VarDeclaration:
+		typeObj, ok := env.Get(node.Type)
+		var val Object
+		if !ok {
+			if node.Type == "p" || node.Type == "string" || node.Type == "int" {
+				val = NULL
+			} else {
+				return newError("unknown type: %s", node.Type)
+			}
+		} else {
+			if strct, isStruct := typeObj.(*Struct); isStruct {
+				val = instantiateStruct(strct)
+			} else {
+				val = NULL
+			}
+		}
+
+		if node.Value != nil {
+			val = Eval(node.Value, env)
+			if isError(val) {
+				return val
+			}
+		}
+
+		env.Set(node.Name.Value, val)
+		return NULL
+
+	case *ast.NewExpression:
+		typeObj, ok := env.Get(node.Class)
+		if !ok {
+			return newError("unknown type: %s", node.Class)
+		}
+		if strct, isStruct := typeObj.(*Struct); isStruct {
+			instance := instantiateStruct(strct)
+			return &Pointer{Value: instance}
+		}
+		return newError("cannot instantiate %s", node.Class)
+
 	case *ast.LetStatement:
 		val := Eval(node.Value, env)
 		if isError(val) {
@@ -34,6 +72,34 @@ func Eval(node ast.Node, env *Environment) Object {
 		}
 		env.Set(node.Name.Value, val)
 		return NULL
+
+	case *ast.AssignExpression:
+		val := Eval(node.Value, env)
+		if isError(val) {
+			return val
+		}
+		if pa, ok := node.Left.(*ast.PropertyAccessExpression); ok {
+			object := Eval(pa.Object, env)
+			if isError(object) {
+				return object
+			}
+			if pa.Token.Literal == "->" {
+				ptr, isPtr := object.(*Pointer)
+				if !isPtr {
+					return newError("-> applied to non-pointer in assignment")
+				}
+				return evalPropertyAssignment(ptr.Value, pa.Property, val)
+			} else {
+				if object.Type() == POINTER_OBJ {
+					return newError(". applied to pointer in assignment")
+				}
+				return evalPropertyAssignment(object, pa.Property, val)
+			}
+		} else if id, ok := node.Left.(*ast.Identifier); ok {
+			env.Set(id.Value, val)
+			return val
+		}
+		return newError("invalid lvalue in assignment")
 
 	case *ast.ReturnStatement:
 		val := Eval(node.ReturnValue, env)
@@ -69,6 +135,9 @@ func Eval(node ast.Node, env *Environment) Object {
 		return nativeBoolToBooleanObject(node.Value)
 
 	case *ast.PrefixExpression:
+		if node.Operator == "++" {
+			return evalIncExpression(node, env)
+		}
 		right := Eval(node.Right, env)
 		if isError(right) {
 			return right
@@ -132,6 +201,30 @@ func Eval(node ast.Node, env *Environment) Object {
 		return evalIdentifier(node, env)
 	case *ast.ArrayLiteral:
 		return evalArrayLiteral(node, env)
+
+	case *ast.StructLiteral:
+		return evalStructLiteral(node, env)
+
+	case *ast.PropertyAccessExpression:
+		object := Eval(node.Object, env)
+		if isError(object) {
+			return object
+		}
+		if node.Token.Literal == "->" {
+			ptr, ok := object.(*Pointer)
+			if !ok {
+				return newError("-> applied to non-pointer")
+			}
+			return evalPropertyAccessExpression(ptr.Value, node.Property)
+		} else {
+			if object.Type() == POINTER_OBJ {
+				return newError(". applied to pointer")
+			}
+			return evalPropertyAccessExpression(object, node.Property)
+		}
+
+	case *ast.ForStatement:
+		return evalForStatement(node, env)
 
 	case *ast.HashLiteral:
 		return evalHashLiteral(node, env)
@@ -319,6 +412,8 @@ func evalIdentifier(node *ast.Identifier, env *Environment) Object {
 	if val, ok := env.Get(node.Value); ok {
 		return val
 	}
+	if node.Value == "string" { return &String{Value: ""} }
+	if node.Value == "int" { return &Integer{Value: 0} }
 	return newError("identifier not found: %s", node.Value)
 }
 
@@ -556,3 +651,95 @@ func newError(format string, a ...interface{}) *Error {
 func isError(obj Object) bool {
 	return obj != nil && obj.Type() == ERROR_OBJ
 }
+
+func evalStructLiteral(node *ast.StructLiteral, env *Environment) Object {
+	properties := make(map[string]Object)
+	for key, valueNode := range node.Pairs {
+		value := Eval(valueNode, env)
+		if isError(value) {
+			return value
+		}
+		properties[key] = value
+	}
+	return &Struct{Properties: properties}
+}
+
+func evalPropertyAccessExpression(object Object, property *ast.Identifier) Object {
+	strct, ok := object.(*Struct)
+	if !ok {
+		return newError("property access not supported on %s", object.Type())
+	}
+	val, ok := strct.Properties[property.Value]
+	if !ok {
+		return NULL
+	}
+	return val
+}
+
+func evalForStatement(node *ast.ForStatement, env *Environment) Object {
+	loopEnv := NewEnclosedEnvironment(env)
+	if node.Init != nil {
+		Eval(node.Init, loopEnv)
+	}
+	var result Object
+	for {
+		if node.Condition != nil {
+			cond := Eval(node.Condition, loopEnv)
+			if isError(cond) {
+				return cond
+			}
+			if !isTruthy(cond) {
+				break
+			}
+		}
+		result = Eval(node.Body, loopEnv)
+		if result != nil {
+			if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
+				return result
+			}
+			if result.Type() == BREAK_OBJ {
+				break
+			}
+			// if CONTINUE_OBJ, just let post execute
+		}
+		if node.Post != nil {
+			Eval(node.Post, loopEnv)
+		}
+	}
+	return NULL
+}
+
+func evalIncExpression(node *ast.PrefixExpression, env *Environment) Object {
+	ident, ok := node.Right.(*ast.Identifier)
+	if !ok {
+		return newError("++ requires ident")
+	}
+	val, ok := env.Get(ident.Value)
+	if !ok {
+		return newError("ident not found")
+	}
+	intVal, ok := val.(*Integer)
+	if !ok {
+		return newError("++ only integer")
+	}
+	newVal := &Integer{Value: intVal.Value + 1}
+	env.Set(ident.Value, newVal)
+	return newVal
+}
+
+func instantiateStruct(s *Struct) *Struct {
+	newProps := make(map[string]Object)
+	for k, v := range s.Properties {
+		newProps[k] = v
+	}
+	return &Struct{Properties: newProps}
+}
+
+func evalPropertyAssignment(object Object, property *ast.Identifier, val Object) Object {
+	if s, ok := object.(*Struct); ok {
+		s.Properties[property.Value] = val
+		return val
+	}
+	return newError("property assignment not supported on %s", object.Type())
+}
+
