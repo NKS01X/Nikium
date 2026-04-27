@@ -25,6 +25,8 @@ func NewEnvironment() *Environment {
 			switch arg := args[0].(type) {
 			case *String:
 				return &Integer{Value: int64(len(arg.Value))}
+			case *Array:
+				return &Integer{Value: int64(len(arg.Elements))}
 			default:
 				return &Error{
 					Message: fmt.Sprintf("len: unsupported type %s", arg.Type()),
@@ -59,6 +61,32 @@ func NewEnvironment() *Environment {
 			copy(newElements, arr.Elements)
 			newElements[len(arr.Elements)] = args[1]
 			return &Array{Elements: newElements}
+		},
+	})
+
+	env.Set("ord", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: fmt.Sprintf("ord: expected 1 argument, got %d", len(args))}
+			}
+			s, ok := args[0].(*String)
+			if !ok || len(s.Value) == 0 {
+				return &Error{Message: "ord: expected non-empty string"}
+			}
+			return &Integer{Value: int64(s.Value[0])}
+		},
+	})
+
+	env.Set("chr", &Function{
+		Native: func(args []Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: fmt.Sprintf("chr: expected 1 argument, got %d", len(args))}
+			}
+			n, ok := args[0].(*Integer)
+			if !ok {
+				return &Error{Message: "chr: expected integer"}
+			}
+			return &String{Value: string(rune(n.Value))}
 		},
 	})
 

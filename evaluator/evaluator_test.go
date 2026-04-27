@@ -162,15 +162,15 @@ func TestErrorHandling(t *testing.T) {
 		},
 		{
 			"true + false;",
-			"unknown operator: BOOLEAN + BOOLEAN",
+			"type mismatch: BOOLEAN + BOOLEAN",
 		},
 		{
 			"5; true + false; 5",
-			"unknown operator: BOOLEAN + BOOLEAN",
+			"type mismatch: BOOLEAN + BOOLEAN",
 		},
 		{
 			"if (10 > 1) { true + false; }",
-			"unknown operator: BOOLEAN + BOOLEAN",
+			"type mismatch: BOOLEAN + BOOLEAN",
 		},
 		{
 			`
@@ -182,7 +182,7 @@ if (10 > 1) {
   return 1;
 }
 `,
-			"unknown operator: BOOLEAN + BOOLEAN",
+			"type mismatch: BOOLEAN + BOOLEAN",
 		},
 		{
 			"foobar",
@@ -190,7 +190,7 @@ if (10 > 1) {
 		},
 		{
 			`"Hello" - "World"`,
-			"unknown operator: STRING - STRING",
+			"unknown operator for strings: -",
 		},
 	}
 
@@ -216,10 +216,10 @@ func TestLetStatements(t *testing.T) {
 		input    string
 		expected int64
 	}{
-		{"let a = 5; a;", 5},
-		{"let a = 5 * 5; a;", 25},
-		{"let a = 5; let b = a; b;", 5},
-		{"let a = 5; let b = a; let c = a + b + 5; c;", 15},
+		{"a = 5; a;", 5},
+		{"a = 5 * 5; a;", 25},
+		{"a = 5; b = a; b;", 5},
+		{"a = 5; b = a; c = a + b + 5; c;", 15},
 	}
 
 	for _, tt := range tests {
@@ -257,11 +257,11 @@ func TestFunctionApplication(t *testing.T) {
 		input    string
 		expected int64
 	}{
-		{"let identity = fn(x) { x; }; identity(5);", 5},
-		{"let identity = fn(x) { return x; }; identity(5);", 5},
-		{"let double = fn(x) { x * 2; }; double(5);", 10},
-		{"let add = fn(x, y) { x + y; }; add(5, 5);", 10},
-		{"let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));", 20},
+		{"identity = fn(x) { x; }; identity(5);", 5},
+		{"identity = fn(x) { return x; }; identity(5);", 5},
+		{"double = fn(x) { x * 2; }; double(5);", 10},
+		{"add = fn(x, y) { x + y; }; add(5, 5);", 10},
+		{"add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));", 20},
 		{"fn(x) { x; }(5)", 5},
 	}
 
@@ -272,11 +272,11 @@ func TestFunctionApplication(t *testing.T) {
 
 func TestClosures(t *testing.T) {
 	input := `
-let newAdder = fn(x) {
+newAdder = fn(x) {
   fn(y) { x + y };
 };
 
-let addTwo = newAdder(2);
+addTwo = newAdder(2);
 addTwo(2);
 `
 

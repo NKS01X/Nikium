@@ -1,25 +1,39 @@
-tar = readInt();
+load "stdlib/math.nik";
+load "stdlib/string.nik";
+load "stdlib/array.nik";
 
-lo = 0;
-hi = 10;
-found = 0;
-while lo < hi {
-    mid = (lo + hi) / 2;
-    if mid == tar {
-        found = 1;
-        lo = mid;
-        hi = mid;
-    }else {
-        if mid < tar {
-            lo = mid + 1;
-        }else {
-            hi = mid - 1;
-        }
-    }
-}
-if found == 0 {
-    print("not found");
-}else {
-    print("found");
+print "--- Nikium Example Program ---";
+
+name:string = "World";
+x = 10;
+y = 20;
+active:bool = true;
+
+print "Hello, " + name + "!";
+
+z = x + y;
+print "The sum of x and y is:";
+print z;
+
+print "The min of x and y is:";
+print min(x, y);
+
+up_name = upper(name);
+print "Uppercase name:";
+print up_name;
+
+arr = [1, 2, 3, 4, 5];
+print "Sum of array:";
+print sum(arr);
+
+i = 0;
+while i < 5 {
+    print i;
+    i = i + 1;
 }
 
+if (active) {
+    print "System is active.";
+}
+
+print "--- End of Program ---";

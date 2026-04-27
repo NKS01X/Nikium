@@ -1,0 +1,74 @@
+map = fn(arr, f) {
+    result = [];
+    i = 0;
+    while i < len(arr) {
+        result = push(result, f(arr[i]));
+        i = i + 1;
+    }
+    return result;
+};
+
+filter = fn(arr, pred) {
+    result = [];
+    i = 0;
+    while i < len(arr) {
+        if pred(arr[i]) {
+            result = push(result, arr[i]);
+        }
+        i = i + 1;
+    }
+    return result;
+};
+
+reduce = fn(arr, f, init) {
+    acc = init;
+    i = 0;
+    while i < len(arr) {
+        acc = f(acc, arr[i]);
+        i = i + 1;
+    }
+    return acc;
+};
+
+contains = fn(arr, val) {
+    i = 0;
+    while i < len(arr) {
+        if arr[i] == val {
+            return true;
+        }
+        i = i + 1;
+    }
+    return false;
+};
+
+sum = fn(arr) {
+    total = 0;
+    i = 0;
+    while i < len(arr) {
+        total = total + arr[i];
+        i = i + 1;
+    }
+    return total;
+};
+
+reverse = fn(arr) {
+    result = [];
+    i = len(arr) - 1;
+    while i >= 0 {
+        result = push(result, arr[i]);
+        i = i - 1;
+    }
+    return result;
+};
+
+indexOf = fn(arr, val) {
+    i = 0;
+    l = len(arr);
+    while i < l {
+        if arr[i] == val {
+            return i;
+        }
+        i = i + 1;
+    }
+    return -1;
+};

@@ -8,7 +8,7 @@ func TestGetTokenType(t *testing.T) {
 		want    string
 	}{
 		{"fn", "FUNCTION"},
-		{"let", "IDENT"},
+		{"let", "LET"},
 		{"true", "TRUE"},
 		{"false", "FALSE"},
 		{"if", "IF"},

@@ -27,6 +27,11 @@ const (
 
 	LT = "<"
 	GT = ">"
+	LTE = "<="
+	GTE = ">="
+	LSHIFT = "<<"
+	RSHIFT = ">>"
+	MOD = "%"
 
 	EQ     = "=="
 	NOT_EQ = "!="
@@ -55,6 +60,9 @@ const (
 	RETURN   = "RETURN"
 	PRINT    = "PRINT"
 	WHILE    = "WHILE"
+	BREAK    = "BREAK"
+	CONTINUE = "CONTINUE"
+	LOAD     = "LOAD"
 )
 
 // Keywords map
@@ -65,9 +73,12 @@ var keywords = map[string]TokenType{
 	"false":  FALSE,
 	"if":     IF,
 	"else":   ELSE,
-	"return": RETURN,
-	"print":  PRINT,
-	"while":  WHILE,
+	"return":   RETURN,
+	"print":    PRINT,
+	"while":    WHILE,
+	"break":    BREAK,
+	"continue": CONTINUE,
+	"load":     LOAD,
 }
 
 // Lookup function

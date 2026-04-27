@@ -50,8 +50,8 @@ Nikium Language Features:
 func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
 	env := evaluator.NewEnvironment()
-	fmt.Fprintln(out, BANNER)
-	fmt.Fprintln(out, FEATURES)
+	fmt.Fprint(out, BANNER)
+	fmt.Fprint(out, FEATURES)
 	fmt.Fprintln(out, "Welcome to Nikium REPL! Type code and press Enter.")
 
 	for {

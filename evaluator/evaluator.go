@@ -2,13 +2,18 @@ package evaluator
 
 import (
 	"Nikium/ast"
+	"Nikium/lexer"
+	"Nikium/parser"
 	"fmt"
+	"io/ioutil"
 )
 
 var (
-	NULL  = &Null{}
-	TRUE  = &Boolean{Value: true}
-	FALSE = &Boolean{Value: false}
+	NULL             = &Null{}
+	TRUE             = &Boolean{Value: true}
+	FALSE            = &Boolean{Value: false}
+	BREAK_OBJ_VAL    = &Break{}
+	CONTINUE_OBJ_VAL = &Continue{}
 )
 
 // --- Eval ---
@@ -45,6 +50,15 @@ func Eval(node ast.Node, env *Environment) Object {
 		fmt.Println(val.Inspect())
 		return NULL
 
+	case *ast.BreakStatement:
+		return BREAK_OBJ_VAL
+
+	case *ast.ContinueStatement:
+		return CONTINUE_OBJ_VAL
+
+	case *ast.LoadStatement:
+		return evalLoadStatement(node, env)
+
 	case *ast.IntegerLiteral:
 		return &Integer{Value: node.Value}
 
@@ -62,6 +76,39 @@ func Eval(node ast.Node, env *Environment) Object {
 		return evalPrefixExpression(node.Operator, right)
 
 	case *ast.BinaryExpression:
+		if node.Operator == "&&" {
+			left := Eval(node.Left, env)
+			if isError(left) {
+				return left
+			}
+			if !isTruthy(left) {
+				return FALSE
+			}
+			right := Eval(node.Right, env)
+			if isError(right) {
+				return right
+			}
+			if isTruthy(right) {
+				return TRUE
+			}
+			return FALSE
+		} else if node.Operator == "||" {
+			left := Eval(node.Left, env)
+			if isError(left) {
+				return left
+			}
+			if isTruthy(left) {
+				return TRUE
+			}
+			right := Eval(node.Right, env)
+			if isError(right) {
+				return right
+			}
+			if isTruthy(right) {
+				return TRUE
+			}
+			return FALSE
+		}
 		left := Eval(node.Left, env)
 		if isError(left) {
 			return left
@@ -166,13 +213,30 @@ func evalProgram(program *ast.Program, env *Environment) Object {
 	return result
 }
 
+func evalLoadStatement(node *ast.LoadStatement, env *Environment) Object {
+	content, err := ioutil.ReadFile(node.File.Value)
+	if err != nil {
+		return newError("could not read file: %s", node.File.Value)
+	}
+
+	l := lexer.New(string(content))
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) != 0 {
+		return newError("failed to parse loaded file: %s", node.File.Value)
+	}
+
+	return Eval(program, env)
+}
+
 func evalBlockStatement(block *ast.BlockStatement, env *Environment) Object {
 	var result Object
 	for _, stmt := range block.Statements {
 		result = Eval(stmt, env)
 		if result != nil {
 			switch result.Type() {
-			case RETURN_VALUE_OBJ, ERROR_OBJ:
+			case RETURN_VALUE_OBJ, ERROR_OBJ, BREAK_OBJ, CONTINUE_OBJ:
 				return result
 			}
 		}
@@ -194,6 +258,10 @@ func evalWhileStatement(ws *ast.WhileStatement, env *Environment) Object {
 			switch result.Type() {
 			case RETURN_VALUE_OBJ, ERROR_OBJ:
 				return result
+			case BREAK_OBJ:
+				return NULL
+			case CONTINUE_OBJ:
+				continue
 			}
 		}
 	}
@@ -413,10 +481,23 @@ func evalIntegerInfixExpression(op string, left, right Object) Object {
 		return &Integer{Value: lv * rv}
 	case "/":
 		return &Integer{Value: lv / rv}
+	case "%":
+		if rv == 0 {
+			return newError("modulo by zero")
+		}
+		return &Integer{Value: lv % rv}
+	case "<<":
+		return &Integer{Value: lv << rv}
+	case ">>":
+		return &Integer{Value: lv >> rv}
 	case "<":
 		return nativeBoolToBooleanObject(lv < rv)
 	case ">":
 		return nativeBoolToBooleanObject(lv > rv)
+	case "<=":
+		return nativeBoolToBooleanObject(lv <= rv)
+	case ">=":
+		return nativeBoolToBooleanObject(lv >= rv)
 	case "==":
 		return nativeBoolToBooleanObject(lv == rv)
 	case "!=":

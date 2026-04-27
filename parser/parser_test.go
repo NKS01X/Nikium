@@ -9,9 +9,9 @@ import (
 
 func TestLetStatements(t *testing.T) {
 	input := `
-	let x = 5;
-	let y = true;
-	let foobar = x;
+	x = 5;
+	y = true;
+	foobar = x;
 	`
 
 	l := lexer.New(input)

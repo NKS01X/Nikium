@@ -53,15 +53,43 @@ func (l *Lexer) NextToken() token.Token {
 			tok = newToken(token.BANG, l.ch)
 		}
 	case '/':
+		if l.peekChar() == '/' {
+			l.skipLineComment()
+			return l.NextToken()
+		}
 		tok = newToken(token.SLASH, l.ch)
+	case '%':
+		tok = newToken(token.MOD, l.ch)
 	case '*':
 		tok = newToken(token.ASTERISK, l.ch)
 	case '<':
-		tok = newToken(token.LT, l.ch)
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.LTE, Literal: string(ch) + string(l.ch)}
+		} else if l.peekChar() == '<' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.LSHIFT, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = newToken(token.LT, l.ch)
+		}
 	case '>':
-		tok = newToken(token.GT, l.ch)
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.GTE, Literal: string(ch) + string(l.ch)}
+		} else if l.peekChar() == '>' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.RSHIFT, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = newToken(token.GT, l.ch)
+		}
 	case ';':
 		tok = newToken(token.SEMICOLON, l.ch)
+	case ':':
+		tok = newToken(token.COLON, l.ch)
 	case '(':
 		tok = newToken(token.LPAREN, l.ch)
 	case ')':
@@ -141,14 +169,40 @@ func (l *Lexer) readNumber() string {
 }
 
 func (l *Lexer) readString() string {
-	pos := l.position + 1
+	var str string
 	for {
 		l.readChar()
 		if l.ch == '"' || l.ch == 0 {
 			break
 		}
+		if l.ch == '\\' {
+			l.readChar()
+			switch l.ch {
+			case 'n':
+				str += "\n"
+			case 't':
+				str += "\t"
+			case '\\':
+				str += "\\"
+			case '"':
+				str += "\""
+			case 0:
+				break
+			default:
+				str += "\\" + string(l.ch)
+			}
+		} else {
+			str += string(l.ch)
+		}
 	}
-	return l.input[pos:l.position]
+	return str
+}
+
+func (l *Lexer) skipLineComment() {
+	for l.ch != '\n' && l.ch != 0 {
+		l.readChar()
+	}
+	l.skipWhitespace()
 }
 
 func (l *Lexer) peekChar() byte {
