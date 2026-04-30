@@ -578,6 +578,13 @@ func evalInfixExpression(op string, left, right Object) Object {
 			return &String{Value: lstr + rstr}
 		}
 
+		if op == "==" {
+			return nativeBoolToBooleanObject(lstr == rstr)
+		}
+		if op == "!=" {
+			return nativeBoolToBooleanObject(lstr != rstr)
+		}
+
 		if len(lstr) == 1 && len(rstr) == 1 {
 			lv := int64(lstr[0])
 			rv := int64(rstr[0])

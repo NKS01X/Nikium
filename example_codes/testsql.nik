@@ -1,0 +1,30 @@
+load "stdlib/sql.nik";
+
+print "--- Test 1: SELECT with structured WHERE ---";
+q = Select(["id", "name", "email"]);
+From(q, "users");
+Where(q, "age", ">", 18);
+Where(q, "status", "=", "active");
+Limit(q, 10);
+Offset(q, 5);
+
+res = toSql(q);
+print "SQL:   " + res.sql;
+print "Args:  " + str(res.args);
+
+print "";
+print "--- Test 2: INSERT ---";
+q2 = Insert("users", ["name", "email"], ["Nikhil", "nik@example.com"]);
+
+res2 = toSql(q2);
+print "SQL:   " + res2.sql;
+print "Args:  " + str(res2.args);
+
+print "";
+print "--- Test 3: UPDATE ---";
+q3 = Update("users", ["name", "status"], ["Nikhil", "inactive"]);
+q3 = Where(q3, "id", "=", 1);
+
+res3 = toSql(q3);
+print "SQL:   " + res3.sql;
+print "Args:  " + str(res3.args);
