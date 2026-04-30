@@ -1,0 +1,9 @@
+
+load "stdlib/linkedlist.nik";
+print "--- Testing LinkedList ---";
+ll = LinkedList();
+ll = LinkedList_push(ll, 10);
+print ll;
+ll = LinkedList_push(ll, 20);
+print ll;
+

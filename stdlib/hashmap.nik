@@ -1,0 +1,75 @@
+// HashMap - parallel arrays, no index assignment
+load "stdlib/dsutil.nik";
+
+HashMap = fn() {
+    return struct {
+        keys: [],
+        values: [],
+        result: ""
+    };
+};
+
+HashMap_put = fn(m, k, v) {
+    i = 0;
+    while (i < len(m.keys)) {
+        if (m.keys[i] == k) {
+            m.values = _setAt(m.values, i, v);
+            return m;
+        }
+        i = i + 1;
+    }
+    m.keys = push(m.keys, k);
+    m.values = push(m.values, v);
+    return m;
+};
+
+HashMap_get = fn(m, k) {
+    i = 0;
+    while (i < len(m.keys)) {
+        if (m.keys[i] == k) {
+            m.result = m.values[i];
+            return m;
+        }
+        i = i + 1;
+    }
+    m.result = "";
+    return m;
+};
+
+HashMap_contains = fn(m, k) {
+    i = 0;
+    while (i < len(m.keys)) {
+        if (m.keys[i] == k) {
+            m.result = true;
+            return m;
+        }
+        i = i + 1;
+    }
+    m.result = false;
+    return m;
+};
+
+HashMap_remove = fn(m, k) {
+    newKeys = [];
+    newVals = [];
+    i = 0;
+    while (i < len(m.keys)) {
+        if (m.keys[i] != k) {
+            newKeys = push(newKeys, m.keys[i]);
+            newVals = push(newVals, m.values[i]);
+        }
+        i = i + 1;
+    }
+    m.keys = newKeys;
+    m.values = newVals;
+    return m;
+};
+
+HashMap_size = fn(m) {
+    return len(m.keys);
+};
+
+HashMap_keys = fn(m) {
+    m.result = m.keys;
+    return m;
+};

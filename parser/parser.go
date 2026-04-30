@@ -531,12 +531,25 @@ func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 	}
 
 	p.nextToken()
-	params = append(params, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+	ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	params = append(params, ident)
+
+	// Allow optional :type
+	if p.peekTokenIs(token.COLON) {
+		p.nextToken() // :
+		p.nextToken() // type name
+	}
 
 	for p.peekTokenIs(token.COMMA) {
-		p.nextToken()
-		p.nextToken()
-		params = append(params, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+		p.nextToken() // ,
+		p.nextToken() // param name
+		ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+		params = append(params, ident)
+
+		if p.peekTokenIs(token.COLON) {
+			p.nextToken() // :
+			p.nextToken() // type name
+		}
 	}
 
 	if !p.expectPeek(token.RPAREN) {

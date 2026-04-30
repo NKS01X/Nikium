@@ -1,0 +1,100 @@
+// Trie - flat array storage, no index assignment
+load "stdlib/dsutil.nik";
+
+Trie = fn() {
+    return struct {
+        chars: [[]],
+        childIdx: [[]],
+        isEnd: [false],
+        result: ""
+    };
+};
+
+Trie_insert = fn(trie, word) {
+    curr = 0;
+    i = 0;
+    while (i < len(word)) {
+        c = word[i];
+        found = false;
+        idx = 0;
+        nodeChars = trie.chars[curr];
+        j = 0;
+        while (j < len(nodeChars)) {
+            if (nodeChars[j] == c) {
+                found = true;
+                idx = j;
+                break;
+            }
+            j = j + 1;
+        }
+        if (found == false) {
+            newIdx = len(trie.isEnd);
+            trie.chars = push(trie.chars, []);
+            trie.childIdx = push(trie.childIdx, []);
+            trie.isEnd = push(trie.isEnd, false);
+            // append char and child index to current node
+            updatedChars = push(trie.chars[curr], c);
+            trie.chars = _setAt(trie.chars, curr, updatedChars);
+            updatedCI = push(trie.childIdx[curr], newIdx);
+            trie.childIdx = _setAt(trie.childIdx, curr, updatedCI);
+            curr = newIdx;
+        } else {
+            curr = trie.childIdx[curr][idx];
+        }
+        i = i + 1;
+    }
+    trie.isEnd = _setAt(trie.isEnd, curr, true);
+    return trie;
+};
+
+Trie_search = fn(trie, word) {
+    curr = 0;
+    i = 0;
+    while (i < len(word)) {
+        c = word[i];
+        found = false;
+        nodeChars = trie.chars[curr];
+        j = 0;
+        while (j < len(nodeChars)) {
+            if (nodeChars[j] == c) {
+                found = true;
+                curr = trie.childIdx[curr][j];
+                break;
+            }
+            j = j + 1;
+        }
+        if (found == false) {
+            trie.result = false;
+            return trie;
+        }
+        i = i + 1;
+    }
+    trie.result = trie.isEnd[curr];
+    return trie;
+};
+
+Trie_startsWith = fn(trie, prefix) {
+    curr = 0;
+    i = 0;
+    while (i < len(prefix)) {
+        c = prefix[i];
+        found = false;
+        nodeChars = trie.chars[curr];
+        j = 0;
+        while (j < len(nodeChars)) {
+            if (nodeChars[j] == c) {
+                found = true;
+                curr = trie.childIdx[curr][j];
+                break;
+            }
+            j = j + 1;
+        }
+        if (found == false) {
+            trie.result = false;
+            return trie;
+        }
+        i = i + 1;
+    }
+    trie.result = true;
+    return trie;
+};

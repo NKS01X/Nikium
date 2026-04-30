@@ -182,3 +182,95 @@ join = struct {
     on: ""
 };
 ```
+
+---
+
+## Data Structures
+
+The standard library includes advanced data structures implemented using structs and arrays. 
+**IMPORTANT**: Due to current evaluator constraints, passing a struct to a function will clear its properties in the caller unless the function returns the modified struct and you re-assign it. 
+
+**Correct Pattern:**
+```nikium
+ll = LinkedList();
+ll = LinkedList_push(ll, 10); // Re-assign ll!
+ll = LinkedList_popFront(ll);
+print ll.popped;               // Popped value is stored in .popped
+ll = LinkedList_toArray(ll);
+print ll.result;               // Return results are stored in .result
+```
+
+### linkedlist.nik
+| Function | Signature | Description |
+|---|---|---|
+| `LinkedList` | `LinkedList()` | Initialize a singly linked list |
+| `LinkedList_push` | `ll = LinkedList_push(ll, val)` | Push value to tail |
+| `LinkedList_popFront` | `ll = LinkedList_popFront(ll)` | Pop value from head (result in `.popped`) |
+| `LinkedList_peek` | `ll = LinkedList_peek(ll)` | Peek head (result in `.result`) |
+| `LinkedList_toArray` | `ll = LinkedList_toArray(ll)` | Get array (result in `.result`) |
+
+### doublylinkedlist.nik
+| Function | Signature | Description |
+|---|---|---|
+| `DoublyLinkedList` | `DoublyLinkedList()` | Initialize a doubly linked list |
+| `DoublyLinkedList_push` | `dll = DoublyLinkedList_push(dll, val)` | Push value to tail |
+| `DoublyLinkedList_pushFront` | `dll = DoublyLinkedList_pushFront(dll, val)` | Push value to head |
+| `DoublyLinkedList_popBack` | `dll = DoublyLinkedList_popBack(dll)` | Pop tail (result in `.popped`) |
+| `DoublyLinkedList_popFront` | `dll = DoublyLinkedList_popFront(dll)` | Pop head (result in `.popped`) |
+| `DoublyLinkedList_toArray` | `dll = DoublyLinkedList_toArray(dll)` | Get array (result in `.result`) |
+
+### stack.nik
+| Function | Signature | Description |
+|---|---|---|
+| `Stack` | `Stack()` | Initialize LIFO stack |
+| `Stack_push` | `s = Stack_push(s, val)` | Push value |
+| `Stack_pop` | `s = Stack_pop(s)` | Pop value (result in `.popped`) |
+| `Stack_peek` | `s = Stack_peek(s)` | Peek top (result in `.result`) |
+
+### queue.nik
+| Function | Signature | Description |
+|---|---|---|
+| `Queue` | `Queue()` | Initialize FIFO queue |
+| `Queue_enqueue` | `q = Queue_enqueue(q, val)` | Enqueue value |
+| `Queue_dequeue` | `q = Queue_dequeue(q)` | Dequeue value (result in `.popped`) |
+| `Queue_peek` | `q = Queue_peek(q)` | Peek front (result in `.result`) |
+
+### priorityqueue.nik
+| Function | Signature | Description |
+|---|---|---|
+| `PriorityQueue` | `PriorityQueue()` | Initialize min-heap PQ |
+| `PriorityQueue_push` | `pq = PriorityQueue_push(pq, val, pri)` | Push with priority |
+| `PriorityQueue_pop` | `pq = PriorityQueue_pop(pq)` | Pop min pri (result in `.popped`) |
+
+### trie.nik
+| Function | Signature | Description |
+|---|---|---|
+| `Trie` | `Trie()` | Initialize Trie |
+| `Trie_insert` | `tr = Trie_insert(tr, word)` | Insert word |
+| `Trie_search` | `tr = Trie_search(tr, word)` | Search (result in `.result`) |
+| `Trie_startsWith` | `tr = Trie_startsWith(tr, pre)` | Prefix search (result in `.result`) |
+
+### bst.nik
+| Function | Signature | Description |
+|---|---|---|
+| `BST` | `BST()` | Initialize BST |
+| `BST_insert` | `tree = BST_insert(tree, val)` | Insert value |
+| `BST_search` | `tree = BST_search(tree, val)` | Search (result in `.result`) |
+| `BST_inorder` | `tree = BST_inorder(tree)` | In-order array (result in `.result`) |
+
+### hashmap.nik
+| Function | Signature | Description |
+|---|---|---|
+| `HashMap` | `HashMap()` | Initialize array-backed map |
+| `HashMap_put` | `hm = HashMap_put(hm, k, v)` | Put key-value pair |
+| `HashMap_get` | `hm = HashMap_get(hm, k)` | Get value (result in `.result`) |
+| `HashMap_contains` | `hm = HashMap_contains(hm, k)` | Check key (result in `.result`) |
+
+### graph.nik
+| Function | Signature | Description |
+|---|---|---|
+| `Graph` | `Graph()` | Initialize directed graph |
+| `Graph_addNode` | `g = Graph_addNode(g, n)` | Add node |
+| `Graph_addEdge` | `g = Graph_addEdge(g, n1, n2)` | Add directed edge |
+| `Graph_getNeighbors` | `g = Graph_getNeighbors(g, n)` | Get neighbors (result in `.result`) |
+

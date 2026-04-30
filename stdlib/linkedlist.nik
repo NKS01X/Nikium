@@ -1,0 +1,100 @@
+// Singly Linked List - array-backed, no index assignment
+load "stdlib/dsutil.nik";
+
+LinkedList = fn() {
+    return struct {
+        data: [],
+        nexts: [],
+        head: -1,
+        tail: -1,
+        size: 0,
+        popped: "",
+        result: ""
+    };
+};
+
+LinkedList_push = fn(list, value) {
+    idx = len(list.data);
+    list.data = push(list.data, value);
+    list.nexts = push(list.nexts, -1);
+    if (list.head == -1) {
+        list.head = idx;
+        list.tail = idx;
+    } else {
+        list.nexts = _setAt(list.nexts, list.tail, idx);
+        list.tail = idx;
+    }
+    list.size = list.size + 1;
+    return list;
+};
+
+LinkedList_pushFront = fn(list, value) {
+    idx = len(list.data);
+    list.data = push(list.data, value);
+    list.nexts = push(list.nexts, list.head);
+    if (list.head == -1) {
+        list.tail = idx;
+    }
+    list.head = idx;
+    list.size = list.size + 1;
+    return list;
+};
+
+LinkedList_popFront = fn(list) {
+    if (list.head == -1) {
+        list.popped = "";
+        return list;
+    }
+    val = list.data[list.head];
+    list.head = list.nexts[list.head];
+    if (list.head == -1) {
+        list.tail = -1;
+    }
+    list.size = list.size - 1;
+    list.popped = val;
+    return list;
+};
+
+LinkedList_peek = fn(list) {
+    if (list.head == -1) {
+        list.result = "";
+        return list;
+    }
+    list.result = list.data[list.head];
+    return list;
+};
+
+LinkedList_peekBack = fn(list) {
+    if (list.tail == -1) {
+        list.result = "";
+        return list;
+    }
+    list.result = list.data[list.tail];
+    return list;
+};
+
+LinkedList_toArray = fn(list) {
+    res = [];
+    curr = list.head;
+    while (curr != -1) {
+        res = push(res, list.data[curr]);
+        curr = list.nexts[curr];
+    }
+    list.result = res;
+    return list;
+};
+
+LinkedList_get = fn(list, index) {
+    curr = list.head;
+    i = 0;
+    while (curr != -1) {
+        if (i == index) {
+            list.result = list.data[curr];
+            return list;
+        }
+        curr = list.nexts[curr];
+        i = i + 1;
+    }
+    list.result = "";
+    return list;
+};

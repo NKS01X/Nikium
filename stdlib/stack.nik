@@ -1,0 +1,45 @@
+// Stack - LIFO using array
+
+Stack = fn() {
+    return struct {
+        data: [],
+        size: 0,
+        popped: "",
+        result: ""
+    };
+};
+
+Stack_push = fn(s, value) {
+    s.data = push(s.data, value);
+    s.size = s.size + 1;
+    return s;
+};
+
+Stack_pop = fn(s) {
+    if (s.size == 0) {
+        s.popped = "";
+        return s;
+    }
+    val = s.data[s.size - 1];
+    newData = [];
+    for (i = 0; i < s.size - 1; ++i) {
+        newData = push(newData, s.data[i]);
+    }
+    s.data = newData;
+    s.size = s.size - 1;
+    s.popped = val;
+    return s;
+};
+
+Stack_peek = fn(s) {
+    if (s.size == 0) {
+        s.result = "";
+        return s;
+    }
+    s.result = s.data[s.size - 1];
+    return s;
+};
+
+Stack_isEmpty = fn(s) {
+    return s.size == 0;
+};

@@ -1,0 +1,112 @@
+// Doubly Linked List - array-backed, no index assignment
+load "stdlib/dsutil.nik";
+
+DoublyLinkedList = fn() {
+    return struct {
+        data: [],
+        prevs: [],
+        nexts: [],
+        head: -1,
+        tail: -1,
+        size: 0,
+        popped: "",
+        result: ""
+    };
+};
+
+DoublyLinkedList_push = fn(list, value) {
+    idx = len(list.data);
+    list.data = push(list.data, value);
+    list.prevs = push(list.prevs, list.tail);
+    list.nexts = push(list.nexts, -1);
+    if (list.head == -1) {
+        list.head = idx;
+    } else {
+        list.nexts = _setAt(list.nexts, list.tail, idx);
+    }
+    list.tail = idx;
+    list.size = list.size + 1;
+    return list;
+};
+
+DoublyLinkedList_pushFront = fn(list, value) {
+    idx = len(list.data);
+    list.data = push(list.data, value);
+    list.prevs = push(list.prevs, -1);
+    list.nexts = push(list.nexts, list.head);
+    if (list.tail == -1) {
+        list.tail = idx;
+    } else {
+        list.prevs = _setAt(list.prevs, list.head, idx);
+    }
+    list.head = idx;
+    list.size = list.size + 1;
+    return list;
+};
+
+DoublyLinkedList_popBack = fn(list) {
+    if (list.tail == -1) {
+        list.popped = "";
+        return list;
+    }
+    val = list.data[list.tail];
+    prev = list.prevs[list.tail];
+    if (prev == -1) {
+        list.head = -1;
+        list.tail = -1;
+    } else {
+        list.nexts = _setAt(list.nexts, prev, -1);
+        list.tail = prev;
+    }
+    list.size = list.size - 1;
+    list.popped = val;
+    return list;
+};
+
+DoublyLinkedList_popFront = fn(list) {
+    if (list.head == -1) {
+        list.popped = "";
+        return list;
+    }
+    val = list.data[list.head];
+    nxt = list.nexts[list.head];
+    if (nxt == -1) {
+        list.head = -1;
+        list.tail = -1;
+    } else {
+        list.prevs = _setAt(list.prevs, nxt, -1);
+        list.head = nxt;
+    }
+    list.size = list.size - 1;
+    list.popped = val;
+    return list;
+};
+
+DoublyLinkedList_toArray = fn(list) {
+    res = [];
+    curr = list.head;
+    while (curr != -1) {
+        res = push(res, list.data[curr]);
+        curr = list.nexts[curr];
+    }
+    list.result = res;
+    return list;
+};
+
+DoublyLinkedList_peek = fn(list) {
+    if (list.head == -1) {
+        list.result = "";
+        return list;
+    }
+    list.result = list.data[list.head];
+    return list;
+};
+
+DoublyLinkedList_peekBack = fn(list) {
+    if (list.tail == -1) {
+        list.result = "";
+        return list;
+    }
+    list.result = list.data[list.tail];
+    return list;
+};

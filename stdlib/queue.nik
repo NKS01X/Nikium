@@ -1,0 +1,42 @@
+// Queue - FIFO using array with front index
+
+Queue = fn() {
+    return struct {
+        data: [],
+        front: 0,
+        size: 0,
+        popped: "",
+        result: ""
+    };
+};
+
+Queue_enqueue = fn(q, value) {
+    q.data = push(q.data, value);
+    q.size = q.size + 1;
+    return q;
+};
+
+Queue_dequeue = fn(q) {
+    if (q.size == 0) {
+        q.popped = "";
+        return q;
+    }
+    val = q.data[q.front];
+    q.front = q.front + 1;
+    q.size = q.size - 1;
+    q.popped = val;
+    return q;
+};
+
+Queue_peek = fn(q) {
+    if (q.size == 0) {
+        q.result = "";
+        return q;
+    }
+    q.result = q.data[q.front];
+    return q;
+};
+
+Queue_isEmpty = fn(q) {
+    return q.size == 0;
+};

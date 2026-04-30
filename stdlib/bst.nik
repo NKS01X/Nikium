@@ -1,0 +1,104 @@
+// Binary Search Tree - parallel arrays, no index assignment
+load "stdlib/dsutil.nik";
+
+BST = fn() {
+    return struct {
+        vals: [],
+        lefts: [],
+        rights: [],
+        result: ""
+    };
+};
+
+BST_insert = fn(bst, value) {
+    if (len(bst.vals) == 0) {
+        bst.vals = push(bst.vals, value);
+        bst.lefts = push(bst.lefts, -1);
+        bst.rights = push(bst.rights, -1);
+        return bst;
+    }
+    curr = 0;
+    while (true) {
+        if (value < bst.vals[curr]) {
+            if (bst.lefts[curr] == -1) {
+                idx = len(bst.vals);
+                bst.vals = push(bst.vals, value);
+                bst.lefts = push(bst.lefts, -1);
+                bst.rights = push(bst.rights, -1);
+                bst.lefts = _setAt(bst.lefts, curr, idx);
+                break;
+            } else {
+                curr = bst.lefts[curr];
+            }
+        } else {
+            if (bst.rights[curr] == -1) {
+                idx = len(bst.vals);
+                bst.vals = push(bst.vals, value);
+                bst.lefts = push(bst.lefts, -1);
+                bst.rights = push(bst.rights, -1);
+                bst.rights = _setAt(bst.rights, curr, idx);
+                break;
+            } else {
+                curr = bst.rights[curr];
+            }
+        }
+    }
+    return bst;
+};
+
+BST_search = fn(bst, value) {
+    if (len(bst.vals) == 0) {
+        bst.result = false;
+        return bst;
+    }
+    curr = 0;
+    while (curr != -1) {
+        if (bst.vals[curr] == value) {
+            bst.result = true;
+            return bst;
+        }
+        if (value < bst.vals[curr]) {
+            curr = bst.lefts[curr];
+        } else {
+            curr = bst.rights[curr];
+        }
+    }
+    bst.result = false;
+    return bst;
+};
+
+BST_inorder = fn(bst) {
+    res = [];
+    stk = [];
+    if (len(bst.vals) == 0) {
+        bst.result = res;
+        return bst;
+    }
+    curr = 0;
+    while (curr != -1 || len(stk) > 0) {
+        while (curr != -1) {
+            stk = push(stk, curr);
+            curr = bst.lefts[curr];
+        }
+        curr = stk[len(stk) - 1];
+        stk = _removeLast(stk);
+        res = push(res, bst.vals[curr]);
+        curr = bst.rights[curr];
+    }
+    bst.result = res;
+    return bst;
+};
+
+BST_min = fn(bst) {
+    if (len(bst.vals) == 0) { return ""; }
+    curr = 0;
+    while (bst.lefts[curr] != -1) { curr = bst.lefts[curr]; }
+    return bst.vals[curr];
+};
+
+BST_max = fn(bst) {
+    if (len(bst.vals) == 0) { return ""; }
+    curr = 0;
+    while (bst.rights[curr] != -1) { curr = bst.rights[curr]; }
+    return bst.vals[curr];
+};

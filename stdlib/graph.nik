@@ -1,0 +1,99 @@
+// Directed Graph - adjacency list, no index assignment
+load "stdlib/dsutil.nik";
+
+Graph = fn() {
+    return struct {
+        nodes: [],
+        edges: [],
+        result: ""
+    };
+};
+
+Graph_findNode = fn(g, n) {
+    i = 0;
+    while (i < len(g.nodes)) {
+        if (g.nodes[i] == n) {
+            g.result = i;
+            return g;
+        }
+        i = i + 1;
+    }
+    g.result = -1;
+    return g;
+};
+
+Graph_addNode = fn(g, n) {
+    g = Graph_findNode(g, n);
+    if (g.result != -1) { return g; }
+    g.nodes = push(g.nodes, n);
+    g.edges = push(g.edges, []);
+    return g;
+};
+
+Graph_addEdge = fn(g, n1, n2) {
+    g = Graph_addNode(g, n1);
+    g = Graph_addNode(g, n2);
+    g = Graph_findNode(g, n1);
+    idx1 = g.result;
+    g = Graph_findNode(g, n2);
+    idx2 = g.result;
+
+    found = false;
+    neighbors = g.edges[idx1];
+    j = 0;
+    while (j < len(neighbors)) {
+        if (neighbors[j] == idx2) { found = true; break; }
+        j = j + 1;
+    }
+    if (found == false) {
+        updated = push(g.edges[idx1], idx2);
+        g.edges = _setAt(g.edges, idx1, updated);
+    }
+    return g;
+};
+
+Graph_addUndirectedEdge = fn(g, n1, n2) {
+    g = Graph_addEdge(g, n1, n2);
+    g = Graph_addEdge(g, n2, n1);
+    return g;
+};
+
+Graph_getNeighbors = fn(g, n) {
+    g = Graph_findNode(g, n);
+    idx = g.result;
+    if (idx == -1) {
+        g.result = [];
+        return g;
+    }
+    res = [];
+    neighbors = g.edges[idx];
+    j = 0;
+    while (j < len(neighbors)) {
+        res = push(res, g.nodes[neighbors[j]]);
+        j = j + 1;
+    }
+    g.result = res;
+    return g;
+};
+
+Graph_hasEdge = fn(g, n1, n2) {
+    g = Graph_findNode(g, n1);
+    idx1 = g.result;
+    g = Graph_findNode(g, n2);
+    idx2 = g.result;
+    if (idx1 == -1 || idx2 == -1) {
+        g.result = false;
+        return g;
+    }
+    neighbors = g.edges[idx1];
+    j = 0;
+    while (j < len(neighbors)) {
+        if (neighbors[j] == idx2) {
+            g.result = true;
+            return g;
+        }
+        j = j + 1;
+    }
+    g.result = false;
+    return g;
+};

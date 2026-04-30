@@ -1,0 +1,103 @@
+load "stdlib/linkedlist.nik";
+load "stdlib/doublylinkedlist.nik";
+load "stdlib/stack.nik";
+load "stdlib/queue.nik";
+load "stdlib/priorityqueue.nik";
+load "stdlib/trie.nik";
+load "stdlib/bst.nik";
+load "stdlib/hashmap.nik";
+load "stdlib/graph.nik";
+
+print "===== LinkedList =====";
+ll = LinkedList();
+ll = LinkedList_push(ll, 10);
+ll = LinkedList_push(ll, 20);
+ll = LinkedList_push(ll, 30);
+ll = LinkedList_toArray(ll);
+print ll.result;
+ll = LinkedList_popFront(ll);
+print "popped:" + str(ll.popped);
+ll = LinkedList_toArray(ll);
+print ll.result;
+
+print "\n===== DoublyLinkedList =====";
+dll = DoublyLinkedList();
+dll = DoublyLinkedList_push(dll, 100);
+dll = DoublyLinkedList_push(dll, 200);
+dll = DoublyLinkedList_pushFront(dll, 50);
+dll = DoublyLinkedList_toArray(dll);
+print dll.result;
+dll = DoublyLinkedList_popBack(dll);
+print "poppedBack:" + str(dll.popped);
+dll = DoublyLinkedList_popFront(dll);
+print "poppedFront:" + str(dll.popped);
+dll = DoublyLinkedList_toArray(dll);
+print dll.result;
+
+print "\n===== Stack =====";
+s = Stack();
+s = Stack_push(s, 1);
+s = Stack_push(s, 2);
+s = Stack_push(s, 3);
+s = Stack_peek(s);
+print "peek:" + str(s.result);
+s = Stack_pop(s);
+print "popped:" + str(s.popped);
+
+print "\n===== Queue =====";
+q = Queue();
+q = Queue_enqueue(q, "a");
+q = Queue_enqueue(q, "b");
+q = Queue_peek(q);
+print "peek:" + str(q.result);
+q = Queue_dequeue(q);
+print "dequeued:" + str(q.popped);
+
+print "\n===== PriorityQueue =====";
+pq = PriorityQueue();
+pq = PriorityQueue_push(pq, "task1", 10);
+pq = PriorityQueue_push(pq, "task2", 5);
+pq = PriorityQueue_push(pq, "task3", 15);
+pq = PriorityQueue_pop(pq);
+print "pop (min priority): " + str(pq.popped);
+
+print "\n===== Trie =====";
+tr = Trie();
+tr = Trie_insert(tr, "hello");
+tr = Trie_insert(tr, "help");
+tr = Trie_search(tr, "hello");
+print "search 'hello': " + str(tr.result);
+tr = Trie_search(tr, "hell");
+print "search 'hell': " + str(tr.result);
+tr = Trie_startsWith(tr, "hel");
+print "startsWith 'hel': " + str(tr.result);
+
+print "\n===== BST =====";
+tree = BST();
+tree = BST_insert(tree, 10);
+tree = BST_insert(tree, 5);
+tree = BST_insert(tree, 15);
+tree = BST_inorder(tree);
+print "BST inOrder:";
+print tree.result;
+tree = BST_search(tree, 5);
+print "search 5: " + str(tree.result);
+
+print "\n===== HashMap =====";
+hm = HashMap();
+hm = HashMap_put(hm, "key1", "val1");
+hm = HashMap_put(hm, "key2", "val2");
+hm = HashMap_get(hm, "key1");
+print "get key1: " + str(hm.result);
+hm = HashMap_remove(hm, "key1");
+hm = HashMap_get(hm, "key1");
+print "get key1 after remove: " + str(hm.result);
+
+print "\n===== Graph =====";
+g = Graph();
+g = Graph_addNode(g, "A");
+g = Graph_addNode(g, "B");
+g = Graph_addEdge(g, "A", "B");
+g = Graph_getNeighbors(g, "A");
+print "neighbors of A: ";
+print g.result;
