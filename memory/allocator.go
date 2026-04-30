@@ -23,7 +23,8 @@ var heapendindex uintptr = 0
 var currheapidx uintptr = 0
 
 func initheap(size int) {
-	heap, err := syscall.Mmap(-1, 0, size, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_PRIVATE|syscall.MAP_ANON)
+	var err error
+	heap, err = syscall.Mmap(-1, 0, size, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_PRIVATE|syscall.MAP_ANON)
 
 	if err != nil {
 		panic(err)
@@ -54,18 +55,16 @@ func write_tag(sz uint32, addr uintptr, isfree bool) {
 }
 
 // for now we will do a linear search to find the memory(req)
-func find_mem(size uint32) uintptr {
+func find_mem(size uint32) ttags {
 	for x := range freememory {
 		if x.size >= size {
-			return x.ptr
+			return x
 		}
 	}
-	return 0 // nil
+	return ttags{}
 }
 
 func Malloc(size uint) uintptr {
-	//first check if there is any free block of required size
-	//but before that we will round of this size to the next power of 8
 	if (size % 8) != 0 {
 		var rem = size / 8
 		size = (rem + 1) * 8
@@ -73,64 +72,66 @@ func Malloc(size uint) uintptr {
 
 	size += 8
 
-	//we will traverse the freememory map and check if there is any block of required size
+	tag := find_mem(uint32(size))
 
-	//first check if a pointer is available or not
-	memptr := find_mem(uint32(size))
+	if tag.ptr != 0 {
+		delete(freememory, tag)
+		// Splitting
+		if tag.size >= uint32(size)+16 {
+			new_sz := tag.size - uint32(size)
+			rem_ptr := tag.ptr + uintptr(size)
 
-	if memptr != 0 {
-		return memptr
+			write_tag(uint32(size), tag.ptr-4, false)
+			write_tag(uint32(size), tag.ptr-4+uintptr(size)-4, false)
+
+			write_tag(new_sz, rem_ptr-4, true)
+			write_tag(new_sz, rem_ptr-4+uintptr(new_sz)-4, true)
+			freememory[ttags{ptr: rem_ptr, size: new_sz}] = true
+			return tag.ptr
+		}
+		write_tag(tag.size, tag.ptr-4, false)
+		write_tag(tag.size, tag.ptr-4+uintptr(tag.size)-4, false)
+		return tag.ptr
 	}
 
-	//check if memeory is left
 	if currheapidx+uintptr(size) > heapendindex {
 		panic("out of memory")
 	}
 
-	//else allocate the required memeory
 	ansptr := currheapidx + 4
-
-	//header
 	write_tag(uint32(size), currheapidx, false)
-
 	currheapidx += uintptr(size)
-
-	//footer
 	write_tag(uint32(size), currheapidx-4, false)
 
 	return ansptr
-
 }
 
 func Free(ptr uintptr) {
-	//what is the size of the block
-	szptr := ptr - 4 //header is of size 4 bytes
+	szptr := ptr - 4
 	sz := *(*uint32)(unsafe.Pointer(szptr))
-	sz = sz & ^uint32(1) //extracting the size
-	lo := szptr
-	hi := ptr + uintptr(sz)
+	sz = sz & ^uint32(1)
 
-	//first we have to check if we can join the size ways of the memory
-	//left
-	footerleftsz := lo - 4
-
-	if uintptr(footerleftsz) >= uintptr(unsafe.Pointer(&heap[0])) && *(*uint32)(unsafe.Pointer(footerleftsz))&1 == 0 {
-		leftsz := *(*uint32)(unsafe.Pointer(footerleftsz))
-		leftsz = leftsz & ^uint32(1)
+	// left
+	footerleftptr := szptr - 4
+	if footerleftptr >= heapstrtindex && (*(*uint32)(unsafe.Pointer(footerleftptr))&1) == 1 {
+		leftsz := *(*uint32)(unsafe.Pointer(footerleftptr)) & ^uint32(1)
+		leftptr := szptr - uintptr(leftsz) + 4
+		delete(freememory, ttags{ptr: leftptr, size: leftsz})
 		sz += leftsz
-
 		szptr -= uintptr(leftsz)
-		write_tag(uint32(sz), uintptr(szptr), true)
-		write_tag(uint32(sz), uintptr(szptr)+uintptr(sz)-4, true)
 	}
-	//right
-	headerrightsz := hi
-	if uintptr(headerrightsz) < heapendindex && *(*uint32)(unsafe.Pointer(headerrightsz))&1 == 0 {
-		rightsz := *(*uint32)(unsafe.Pointer(headerrightsz))
-		rightsz = rightsz & ^uint32(1)
-		sz += rightsz
 
-		write_tag(uint32(sz), uintptr(szptr), true)
-		write_tag(uint32(sz), uintptr(szptr)+uintptr(sz)-4, true)
+	// right
+	hi := szptr + uintptr(sz)
+	headerrightptr := hi
+	if headerrightptr < currheapidx && (*(*uint32)(unsafe.Pointer(headerrightptr))&1) == 1 {
+		rightsz := *(*uint32)(unsafe.Pointer(headerrightptr)) & ^uint32(1)
+		rightptr := headerrightptr + 4
+		delete(freememory, ttags{ptr: rightptr, size: rightsz})
+		sz += rightsz
 	}
+
+	write_tag(sz, szptr, true)
+	write_tag(sz, szptr+uintptr(sz)-4, true)
+	freememory[ttags{ptr: szptr + 4, size: sz}] = true
 }
